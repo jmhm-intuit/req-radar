@@ -25,6 +25,7 @@ export interface JobReq {
   status: JobStatus;
   decisionReason: string;
   notes: string;
+  jobUrl: string;
   sourceFileName: string;
   sourceHash: string;
   createdAt: string;
@@ -76,9 +77,33 @@ export interface DuplicateCheck {
   comparisons: JobComparison[];
 }
 
-export interface ImportPayload {
+export interface AppSettings {
+  recruitingPortalUrl: string;
+  lastExportAt: string;
+  updatedAt: string;
+}
+
+export interface ReqRadarBackup {
   app: "ReqRadar";
-  version: string;
+  schemaVersion: number;
+  appVersion: string;
   exportedAt: string;
   jobs: JobReq[];
+  settings: AppSettings;
+}
+
+export interface ParsedBackup {
+  schemaVersion: number;
+  appVersion: string;
+  exportedAt: string;
+  jobs: JobReq[];
+  settings: AppSettings;
+}
+
+export interface SyncPreview {
+  newCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  conflictCount: number;
+  totalIncoming: number;
 }

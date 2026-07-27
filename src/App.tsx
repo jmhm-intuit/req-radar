@@ -9,15 +9,19 @@ import {
   Clock,
   Database,
   Download,
+  ExternalLink,
   FileText,
   GitCompare,
   Info,
   LayoutDashboard,
+  Link2,
   Menu,
   Plus,
+  RefreshCw,
   Save,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -36,17 +40,24 @@ import {
 import { extractSourceFromFile, extractSourceFromText } from "./lib/pdf";
 import {
   buildExportPayload,
+  buildSyncPreview,
   downloadJson,
   loadJobs,
-  parseImportFile,
-  saveJobs
+  loadSettings,
+  mergeBackup,
+  parseBackupFile,
+  saveJobs,
+  saveSettings
 } from "./lib/storage";
 import type {
+  AppSettings,
   DuplicateCheck,
   JobComparison,
   JobReq,
   JobStatus,
-  ParsedJob
+  ParsedBackup,
+  ParsedJob,
+  SyncPreview
 } from "./types";
 
 type View = "overview" | "jobs" | "comparisons";
@@ -60,6 +71,7 @@ type Draft = {
   status: JobStatus;
   decisionReason: string;
   notes: string;
+  jobUrl: string;
 };
 
 type Toast = {
@@ -141,6 +153,23 @@ function comparisonLabel(type: JobComparison["type"]): string {
   return "Low similarity";
 }
 
+function normalizeHttpUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const parsed = new URL(candidate);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Use an http:// or https:// URL.");
+  }
+  return parsed.toString();
+}
+
+function openExternalUrl(value: string): void {
+  const url = normalizeHttpUrl(value);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function AppVersion({ compact = false }: { compact?: boolean }) {
   const buildDate = new Date(__BUILD_DATE__);
   const buildLabel = Number.isNaN(buildDate.getTime())
@@ -213,11 +242,15 @@ function JobTable({
   jobs,
   onOpen,
   onStatusChange,
+  onOpenLink,
+  onEditLink,
   compact = false
 }: {
   jobs: JobReq[];
   onOpen: (id: string) => void;
   onStatusChange: (id: string, status: JobStatus) => void;
+  onOpenLink: (job: JobReq) => void;
+  onEditLink: (job: JobReq) => void;
   compact?: boolean;
 }) {
   if (!jobs.length) {
@@ -239,6 +272,7 @@ function JobTable({
             <th>Team</th>
             {!compact && <th>Location</th>}
             <th>Decision</th>
+            {!compact && <th>Links</th>}
             <th>Added</th>
             <th aria-label="Open" />
           </tr>
@@ -283,14 +317,47 @@ function JobTable({
                   ))}
                 </select>
               </td>
+              {!compact && (
+                <td>
+                  <div className="row-link-actions">
+                    {job.jobUrl ? (
+                      <>
+                        <button className="link-button" onClick={() => onOpenLink(job)}>
+                          <ExternalLink size={14} /> Open req
+                        </button>
+                        <button className="icon-button subtle" onClick={() => onEditLink(job)} aria-label={`Edit link for ${job.title}`}>
+                          <Link2 size={15} />
+                        </button>
+                      </>
+                    ) : (
+                      <button className="link-button muted" onClick={() => onEditLink(job)}>
+                        <Plus size={14} /> Add link
+                      </button>
+                    )}
+                  </div>
+                </td>
+              )}
               <td>
                 <span className="table-primary">{relativeDate(job.createdAt)}</span>
                 <small>{job.datePosted ? `Posted ${job.datePosted}` : "Posting date unavailable"}</small>
               </td>
               <td>
-                <button className="icon-button" onClick={() => onOpen(job.id)} aria-label="Open requisition">
-                  <ChevronRight size={18} />
-                </button>
+                <div className="row-end-actions">
+                  {compact ? (
+                    job.jobUrl ? (
+                      <button className="icon-button" onClick={() => onOpenLink(job)} aria-label={`Open job requisition for ${job.title}`}>
+                        <ExternalLink size={17} />
+                      </button>
+                    ) : (
+                      <button className="icon-button" onClick={() => onEditLink(job)} aria-label={`Add link for ${job.title}`}>
+                        <Link2 size={17} />
+                      </button>
+                    )
+                  ) : null}
+                  <button className="icon-button" onClick={() => onOpen(job.id)} aria-label="Open requisition">
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -302,6 +369,7 @@ function JobTable({
 
 function App() {
   const [jobs, setJobs] = useState<JobReq[]>(() => loadJobs());
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [view, setView] = useState<View>("overview");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | JobStatus>("ALL");
@@ -316,12 +384,23 @@ function App() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recruitingUrlDraft, setRecruitingUrlDraft] = useState(settings.recruitingPortalUrl);
+  const [pendingBackup, setPendingBackup] = useState<ParsedBackup | null>(null);
+  const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
+  const [syncMode, setSyncMode] = useState<"merge" | "replace">("merge");
+  const [syncError, setSyncError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
+  const syncInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     saveJobs(jobs);
   }, [jobs]);
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
 
   const comparisons = useMemo(() => buildComparisons(jobs), [jobs]);
   const jobById = useMemo(() => new Map(jobs.map((job) => [job.id, job])), [jobs]);
@@ -341,7 +420,8 @@ function App() {
           job.hiringManager,
           job.recruiter,
           job.locations.join(" "),
-          job.skills.join(" ")
+          job.skills.join(" "),
+          job.jobUrl
         ]
           .join(" ")
           .toLowerCase()
@@ -443,7 +523,8 @@ function App() {
         duplicateCheck,
         status: "NEW",
         decisionReason: "",
-        notes: ""
+        notes: "",
+        jobUrl: ""
       });
       setModalStep("review");
     } catch (error) {
@@ -471,7 +552,14 @@ function App() {
   function moveToDecision() {
     if (!draft) return;
     const duplicateCheck = checkDuplicates(draft.parsed, draft.sourceHash, jobs);
-    setDraft({ ...draft, duplicateCheck });
+    let jobUrl = "";
+    try {
+      jobUrl = normalizeHttpUrl(draft.jobUrl);
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : "Enter a valid job requisition URL.");
+      return;
+    }
+    setDraft({ ...draft, duplicateCheck, jobUrl });
     if (duplicateCheck.exactMatch) {
       setModalError("This requisition is already in ReqRadar. Open the existing record instead.");
       return;
@@ -499,6 +587,7 @@ function App() {
       draft.status,
       draft.decisionReason,
       draft.notes,
+      draft.jobUrl,
       draft.sourceFileName,
       draft.sourceHash
     );
@@ -554,34 +643,128 @@ function App() {
     showToast("Demo data removed", `${demoCount} fictional requisitions were removed.`, "info");
   }
 
-  function exportJobs() {
-    downloadJson(
-      `req-radar-backup-${new Date().toISOString().slice(0, 10)}.json`,
-      buildExportPayload(jobs)
-    );
-    showToast("Backup downloaded", "Keep the JSON file somewhere safe.");
+  function openSyncDialog() {
+    setPendingBackup(null);
+    setSyncPreview(null);
+    setSyncMode("merge");
+    setSyncError("");
+    setSyncOpen(true);
   }
 
-  async function importJobs(event: ChangeEvent<HTMLInputElement>) {
+  function exportJobs() {
+    const exportedAt = new Date().toISOString();
+    const nextSettings = { ...settings, lastExportAt: exportedAt };
+    downloadJson(
+      `req-radar-backup-${exportedAt.slice(0, 10)}.json`,
+      buildExportPayload(jobs, nextSettings, exportedAt)
+    );
+    setSettings(nextSettings);
+    showToast("Backup downloaded", `${jobs.length} requisitions are ready to move to another device.`);
+  }
+
+  async function selectBackupFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     try {
-      const imported = parseImportFile(await file.text());
-      setJobs((current) => {
-        const currentById = new Map(current.map((job) => [job.id, job]));
-        imported.forEach((job) => currentById.set(job.id, job));
-        return [...currentById.values()].sort((left, right) =>
-          right.createdAt.localeCompare(left.createdAt)
-        );
-      });
-      showToast("Backup imported", `${imported.length} requisitions were read from the file.`);
+      const backup = parseBackupFile(await file.text());
+      setPendingBackup(backup);
+      setSyncPreview(buildSyncPreview(jobs, backup));
+      setSyncMode("merge");
+      setSyncError("");
+      setSyncOpen(true);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "The backup file could not be read.");
+      setPendingBackup(null);
+      setSyncPreview(null);
+      setSyncOpen(true);
+    }
+  }
+
+  function applyPendingSync() {
+    if (!pendingBackup) return;
+    if (syncMode === "replace" && !window.confirm("Replace every requisition and link setting stored in this browser with this backup?")) {
+      return;
+    }
+    if (syncMode === "merge") {
+      const result = mergeBackup(jobs, settings, pendingBackup);
+      setJobs(result.jobs);
+      setSettings(result.settings);
+      showToast(
+        "Sync complete",
+        `${result.preview.newCount} added, ${result.preview.updatedCount} updated, ${result.preview.unchangedCount} unchanged.`
+      );
+    } else {
+      setJobs([...pendingBackup.jobs].sort((left, right) => right.createdAt.localeCompare(left.createdAt)));
+      setSettings(pendingBackup.settings);
+      showToast("Backup restored", `${pendingBackup.jobs.length} requisitions replaced the local workspace.`);
+    }
+    setPendingBackup(null);
+    setSyncPreview(null);
+    setSyncOpen(false);
+  }
+
+  function openSettingsDialog() {
+    setRecruitingUrlDraft(settings.recruitingPortalUrl);
+    setSettingsOpen(true);
+  }
+
+  function saveRecruitingPortal() {
+    try {
+      const recruitingPortalUrl = normalizeHttpUrl(recruitingUrlDraft);
+      setSettings((current) => ({
+        ...current,
+        recruitingPortalUrl,
+        updatedAt: new Date().toISOString()
+      }));
+      setSettingsOpen(false);
+      showToast(
+        recruitingPortalUrl ? "Recruiting link saved" : "Recruiting link removed",
+        recruitingPortalUrl
+          ? "The recruiting page is now available from the sidebar."
+          : "The global recruiting shortcut was cleared."
+      );
     } catch (error) {
       showToast(
-        "Import failed",
-        error instanceof Error ? error.message : "The backup file could not be imported.",
+        "Invalid URL",
+        error instanceof Error ? error.message : "Enter a valid recruiting page URL.",
         "error"
       );
+    }
+  }
+
+  function openRecruitingPortal() {
+    if (!settings.recruitingPortalUrl) {
+      openSettingsDialog();
+      return;
+    }
+    try {
+      openExternalUrl(settings.recruitingPortalUrl);
+    } catch (error) {
+      showToast("Invalid recruiting URL", error instanceof Error ? error.message : "Update the saved link.", "error");
+    }
+  }
+
+  function openJobLink(job: JobReq) {
+    try {
+      openExternalUrl(job.jobUrl);
+    } catch (error) {
+      showToast("Invalid job URL", error instanceof Error ? error.message : "Edit the requisition link.", "error");
+    }
+  }
+
+  function editJobLink(job: JobReq) {
+    const value = window.prompt(
+      `Job requisition URL for "${job.title}". Leave blank to remove it.`,
+      job.jobUrl
+    );
+    if (value === null) return;
+    try {
+      const jobUrl = normalizeHttpUrl(value);
+      updateJob(job.id, { jobUrl });
+      showToast(jobUrl ? "Job link saved" : "Job link removed", jobUrl ? "Open it directly from the requisition list." : "The optional link was cleared.");
+    } catch (error) {
+      showToast("Invalid URL", error instanceof Error ? error.message : "Enter a valid requisition URL.", "error");
     }
   }
 
@@ -647,7 +830,24 @@ function App() {
           </div>
         </div>
 
+        <div className="sidebar-quick-links">
+          <span>Quick access</span>
+          <button onClick={openRecruitingPortal}>
+            <ExternalLink size={16} />
+            <div>
+              <strong>{settings.recruitingPortalUrl ? "Open recruiting page" : "Add recruiting page"}</strong>
+              <small>{settings.recruitingPortalUrl ? "Opens in a new tab" : "Save your career-site shortcut"}</small>
+            </div>
+          </button>
+        </div>
+
         <div className="sidebar-tools">
+          <button onClick={openSyncDialog}>
+            <RefreshCw size={15} /> Sync data
+          </button>
+          <button onClick={openSettingsDialog}>
+            <Settings size={15} /> Link settings
+          </button>
           <button onClick={loadDemoPortfolio}>
             <Sparkles size={15} /> Load demo portfolio
           </button>
@@ -656,12 +856,6 @@ function App() {
               <Trash2 size={15} /> Remove demo data
             </button>
           ) : null}
-          <button onClick={exportJobs} disabled={!jobs.length}>
-            <Download size={15} /> Export backup
-          </button>
-          <button onClick={() => importInputRef.current?.click()}>
-            <Upload size={15} /> Import backup
-          </button>
         </div>
 
         <AppVersion />
@@ -691,6 +885,9 @@ function App() {
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
+            <button className="secondary-button sync-top-button" onClick={openSyncDialog}>
+              <RefreshCw size={16} /> Sync data
+            </button>
             <button className="primary-button" onClick={openUpload}>
               <Plus size={17} /> Add job req
             </button>
@@ -721,6 +918,8 @@ function App() {
                       jobs={filteredJobs.slice(0, 6)}
                       onOpen={setSelectedJobId}
                       onStatusChange={changeJobStatus}
+                      onOpenLink={openJobLink}
+                      onEditLink={editJobLink}
                       compact
                     />
                   ) : (
@@ -802,6 +1001,8 @@ function App() {
                 jobs={filteredJobs}
                 onOpen={setSelectedJobId}
                 onStatusChange={changeJobStatus}
+                onOpenLink={openJobLink}
+                onEditLink={editJobLink}
               />
               {jobs.length ? (
                 <div className="panel-footer-actions">
@@ -878,7 +1079,135 @@ function App() {
         </main>
       </div>
 
-      <input ref={importInputRef} type="file" accept="application/json,.json" hidden onChange={importJobs} />
+      <input ref={syncInputRef} type="file" accept="application/json,.json" hidden onChange={selectBackupFile} />
+
+      {syncOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.currentTarget === event.target) setSyncOpen(false);
+        }}>
+          <section className="modal-card sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+            <header className="modal-header">
+              <div>
+                <span className="eyebrow">Manual device sync</span>
+                <h2 id="sync-title">Move your ReqRadar data</h2>
+              </div>
+              <button className="icon-button" onClick={() => setSyncOpen(false)} aria-label="Close"><X size={20} /></button>
+            </header>
+
+            <div className="modal-body sync-body">
+              <p className="sync-intro">Download one backup from this device, then upload it on another device. Nothing is sent to a server.</p>
+
+              <div className="sync-action-grid">
+                <article className="sync-action-card">
+                  <div className="sync-card-icon"><Download size={22} /></div>
+                  <div>
+                    <h3>Download backup</h3>
+                    <p>Includes requisitions, statuses, notes, job links, and your recruiting-page setting.</p>
+                    <button className="primary-button" onClick={exportJobs} disabled={!jobs.length}>
+                      <Download size={16} /> Download {jobs.length || "empty"} reqs
+                    </button>
+                    <small>{settings.lastExportAt ? `Last export: ${formatDate(settings.lastExportAt)}` : "No backup downloaded yet"}</small>
+                  </div>
+                </article>
+
+                <article className="sync-action-card">
+                  <div className="sync-card-icon"><Upload size={22} /></div>
+                  <div>
+                    <h3>Upload backup</h3>
+                    <p>Preview what will be added or updated before changing this browser.</p>
+                    <button className="secondary-button" onClick={() => syncInputRef.current?.click()}>
+                      <Upload size={16} /> Choose JSON backup
+                    </button>
+                    <small>Backups from v1.5 and newer are supported.</small>
+                  </div>
+                </article>
+              </div>
+
+              {syncError ? <div className="error-banner"><AlertTriangle size={18} /><span>{syncError}</span></div> : null}
+
+              {pendingBackup && syncPreview ? (
+                <section className="sync-preview-section">
+                  <div className="section-heading">
+                    <div>
+                      <span className="eyebrow">Import preview</span>
+                      <h3>{syncPreview.totalIncoming} requisitions found</h3>
+                    </div>
+                    <span className="backup-version">Backup {pendingBackup.appVersion ? `v${pendingBackup.appVersion}` : "legacy"}</span>
+                  </div>
+
+                  <div className="sync-preview-grid">
+                    <div><strong>{syncPreview.newCount}</strong><span>New</span></div>
+                    <div><strong>{syncPreview.updatedCount}</strong><span>Updated</span></div>
+                    <div><strong>{syncPreview.unchangedCount}</strong><span>Unchanged</span></div>
+                    <div className={syncPreview.conflictCount ? "has-conflict" : ""}><strong>{syncPreview.conflictCount}</strong><span>Conflicts</span></div>
+                  </div>
+
+                  <div className="sync-mode-grid">
+                    <label className={syncMode === "merge" ? "sync-mode selected" : "sync-mode"}>
+                      <input type="radio" name="sync-mode" checked={syncMode === "merge"} onChange={() => setSyncMode("merge")} />
+                      <div><strong>Merge with this device</strong><span>Recommended. Add missing reqs and use the newest updated record.</span></div>
+                    </label>
+                    <label className={syncMode === "replace" ? "sync-mode selected danger" : "sync-mode danger"}>
+                      <input type="radio" name="sync-mode" checked={syncMode === "replace"} onChange={() => setSyncMode("replace")} />
+                      <div><strong>Replace local data</strong><span>Delete this browser's current workspace and restore the backup exactly.</span></div>
+                    </label>
+                  </div>
+
+                  {syncPreview.conflictCount ? (
+                    <div className="local-note warning"><AlertTriangle size={17} /><span>{syncPreview.conflictCount} same-time conflict(s) will keep the local record when merging.</span></div>
+                  ) : null}
+                </section>
+              ) : null}
+            </div>
+
+            <footer className="modal-footer">
+              <button className="secondary-button" onClick={() => setSyncOpen(false)}>Close</button>
+              {pendingBackup ? (
+                <button className="primary-button" onClick={applyPendingSync}>
+                  <RefreshCw size={16} /> {syncMode === "merge" ? "Merge backup" : "Replace local data"}
+                </button>
+              ) : null}
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.currentTarget === event.target) setSettingsOpen(false);
+        }}>
+          <section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <header className="modal-header">
+              <div>
+                <span className="eyebrow">Quick access</span>
+                <h2 id="settings-title">Recruiting link settings</h2>
+              </div>
+              <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close"><X size={20} /></button>
+            </header>
+            <div className="modal-body">
+              <label className="field-label">
+                <span>Recruiting page URL</span>
+                <input
+                  type="url"
+                  value={recruitingUrlDraft}
+                  onChange={(event) => setRecruitingUrlDraft(event.target.value)}
+                  placeholder="https://careers.example.com/jobs"
+                />
+              </label>
+              <p className="settings-help">This global shortcut appears in the sidebar, opens in a new tab, and is included in your backup file.</p>
+              {settings.recruitingPortalUrl ? (
+                <button className="link-button preview-link" onClick={openRecruitingPortal}>
+                  <ExternalLink size={15} /> Open current recruiting page
+                </button>
+              ) : null}
+            </div>
+            <footer className="modal-footer">
+              <button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button>
+              <button className="primary-button" onClick={saveRecruitingPortal}><Save size={16} /> Save link</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       {modalOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
@@ -998,6 +1327,7 @@ function App() {
                     <label className="field-label span-2"><span>Job title</span><input value={draft.parsed.title} onChange={(event) => updateParsed("title", event.target.value)} /></label>
                     <label className="field-label"><span>Job ID</span><input value={draft.parsed.jobId} onChange={(event) => updateParsed("jobId", event.target.value)} placeholder="Example: 12345" /></label>
                     <label className="field-label"><span>Seniority</span><input value={draft.parsed.seniority} onChange={(event) => updateParsed("seniority", event.target.value)} /></label>
+                    <label className="field-label span-2"><span>Job requisition URL (optional)</span><input type="url" value={draft.jobUrl} onChange={(event) => setDraft({ ...draft, jobUrl: event.target.value })} placeholder="Paste the direct link to this requisition" /></label>
                     <label className="field-label"><span>Category</span><input value={draft.parsed.category} onChange={(event) => updateParsed("category", event.target.value)} /></label>
                     <label className="field-label"><span>Team</span><input value={draft.parsed.team} onChange={(event) => updateParsed("team", event.target.value)} /></label>
                     <label className="field-label"><span>Hiring manager</span><input value={draft.parsed.hiringManager} onChange={(event) => updateParsed("hiringManager", event.target.value)} /></label>
@@ -1102,6 +1432,13 @@ function App() {
                   </select>
                 </label>
                 <label className="field-label"><span>Decision reason</span><input value={selectedJob.decisionReason} onChange={(event) => updateJob(selectedJob.id, { decisionReason: event.target.value })} placeholder="Why are you pursuing or passing?" /></label>
+              </section>
+
+              <section className="drawer-link-card">
+                <label className="field-label"><span>Job requisition URL (optional)</span><input type="url" value={selectedJob.jobUrl} onChange={(event) => updateJob(selectedJob.id, { jobUrl: event.target.value })} placeholder="Paste the direct link to this requisition" /></label>
+                <div className="drawer-link-actions">
+                  {selectedJob.jobUrl ? <button className="secondary-button" onClick={() => openJobLink(selectedJob)}><ExternalLink size={16} /> Open job req</button> : <span>Add a link to open this posting directly from the dashboard.</span>}
+                </div>
               </section>
 
               <section className="detail-section">

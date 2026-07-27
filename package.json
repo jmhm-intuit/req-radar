@@ -1,9 +1,9 @@
 {
   "name": "req-radar",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
-  "description": "ReqRadar v1.5: a browser-based job requisition tracker with local PDF parsing, duplicate checks, comparisons, and inline status updates.",
+  "description": "ReqRadar v1.6: a browser-based job requisition tracker with manual device sync, recruiting links, local PDF parsing, duplicate checks, comparisons, and inline status updates.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

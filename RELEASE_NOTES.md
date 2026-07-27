@@ -1,11 +1,14 @@
-# ReqRadar v1.5.0 release notes
+# ReqRadar v1.6.0 release notes
 
 ## New
 
-- Permanent version display in the sidebar.
-- Compact version badge in the desktop header.
-- Inline status selector on the main dashboard and full requisition list.
-- Confirmation notification after a status change.
+- Manual backup download and upload for device-to-device synchronization.
+- Import preview with new, updated, unchanged, and conflicting record counts.
+- Merge and replace import modes.
+- Global recruiting-page shortcut.
+- Optional direct URL for every job requisition.
+- Job-link actions on the dashboard, full requisition table, upload flow, and detail drawer.
+- Backup schema v2 including settings and job URLs, with v1.5 import compatibility.
 
 ## Deployment
 

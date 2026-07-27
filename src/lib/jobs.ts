@@ -416,6 +416,7 @@ export function checkDuplicates(
     status: "NEW",
     decisionReason: "",
     notes: "",
+    jobUrl: "",
     sourceFileName: "",
     sourceHash,
     createdAt: new Date().toISOString(),
@@ -436,6 +437,7 @@ export function createJob(
   status: JobStatus,
   decisionReason: string,
   notes: string,
+  jobUrl: string,
   sourceFileName: string,
   sourceHash: string
 ): JobReq {
@@ -448,6 +450,7 @@ export function createJob(
     status,
     decisionReason: decisionReason.trim(),
     notes: notes.trim(),
+    jobUrl: jobUrl.trim(),
     sourceFileName,
     sourceHash,
     createdAt: now,
