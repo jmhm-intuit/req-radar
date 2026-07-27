@@ -5,6 +5,24 @@ export type JobStatus =
   | "NOT_PURSUING"
   | "APPLIED";
 
+export type NetworkingStage =
+  | "NOT_STARTED"
+  | "CONTACT_IDENTIFIED"
+  | "MESSAGE_PLANNED"
+  | "CONTACTED"
+  | "RESPONSE_RECEIVED"
+  | "CONVERSATION_SCHEDULED"
+  | "CONVERSATION_COMPLETED"
+  | "REFERRAL_REQUESTED"
+  | "REFERRAL_RECEIVED"
+  | "NOT_NEEDED";
+
+export type InterestLevel = "AUTO" | "HIGH" | "MEDIUM" | "LOW" | "NONE";
+export type Recommendation = "PURSUE" | "CONSIDER" | "LOW_PRIORITY" | "DO_NOT_PURSUE";
+export type RecommendationOverride = "AUTO" | Recommendation;
+export type SkillMatchStatus = "MATCH" | "PARTIAL" | "NO_MATCH" | "CRITICAL_GAP" | "NOT_RELEVANT";
+export type ManualPriority = "HIGH" | "NORMAL" | "LOW" | "ARCHIVE";
+
 export interface JobReq {
   id: string;
   jobId: string;
@@ -28,6 +46,16 @@ export interface JobReq {
   jobUrl: string;
   sourceFileName: string;
   sourceHash: string;
+  networkingStage: NetworkingStage;
+  networkingContact: string;
+  networkingNotes: string;
+  interestOverride: InterestLevel;
+  skillOverrides: Record<string, SkillMatchStatus>;
+  ageOverride: boolean;
+  manualAdjustment: number;
+  manualPriority: ManualPriority;
+  pinned: boolean;
+  recommendationOverride: RecommendationOverride;
   createdAt: string;
   updatedAt: string;
   isDemo?: boolean;
@@ -77,9 +105,19 @@ export interface DuplicateCheck {
   comparisons: JobComparison[];
 }
 
+export interface UserProfile {
+  resumeFileName: string;
+  resumeText: string;
+  skills: string[];
+  interests: string[];
+  avoid: string[];
+  updatedAt: string;
+}
+
 export interface AppSettings {
   recruitingPortalUrl: string;
   lastExportAt: string;
+  hiddenStatuses: JobStatus[];
   updatedAt: string;
 }
 
@@ -90,6 +128,7 @@ export interface ReqRadarBackup {
   exportedAt: string;
   jobs: JobReq[];
   settings: AppSettings;
+  profile: UserProfile;
 }
 
 export interface ParsedBackup {
@@ -98,6 +137,7 @@ export interface ParsedBackup {
   exportedAt: string;
   jobs: JobReq[];
   settings: AppSettings;
+  profile: UserProfile;
 }
 
 export interface SyncPreview {
@@ -106,4 +146,36 @@ export interface SyncPreview {
   unchangedCount: number;
   conflictCount: number;
   totalIncoming: number;
+}
+
+export interface SkillAssessment {
+  skill: string;
+  status: SkillMatchStatus;
+  critical: boolean;
+  reason: string;
+}
+
+export interface JobAssessment {
+  skills: SkillAssessment[];
+  skillsScore: number;
+  interestScore: number;
+  interestLevel: Exclude<InterestLevel, "AUTO">;
+  ageDays: number | null;
+  ageLabel: string;
+  freshnessScore: number;
+  networkingScore: number;
+  calculatedRecommendation: Recommendation;
+  recommendation: Recommendation;
+  baseScore: number;
+  finalScore: number;
+  criticalGaps: string[];
+  reasons: string[];
+  nextAction: string;
+}
+
+export interface BatchResult {
+  fileName: string;
+  status: "ADDED" | "DUPLICATE" | "ERROR";
+  title: string;
+  detail: string;
 }

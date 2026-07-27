@@ -199,7 +199,7 @@ function detectMinimumYears(text: string): number | null {
   return values.length ? Math.max(...values) : null;
 }
 
-function detectSkills(text: string): string[] {
+export function extractSkillsFromText(text: string): string[] {
   const lower = ` ${text.toLowerCase().replace(/\s+/g, " ")} `;
   const skills = SKILL_DICTIONARY.filter(({ aliases }) =>
     aliases.some((alias) => {
@@ -265,7 +265,7 @@ export function parseJobText(rawText: string): ParsedJob {
     descriptionText: text.slice(0, 100000),
     responsibilities: splitSectionItems(responsibilitiesSection),
     qualifications: splitSectionItems(qualificationsSection),
-    skills: detectSkills(`${title}\n${responsibilitiesSection}\n${qualificationsSection}`)
+    skills: extractSkillsFromText(`${title}\n${responsibilitiesSection}\n${qualificationsSection}`)
   };
 }
 
@@ -419,6 +419,16 @@ export function checkDuplicates(
     jobUrl: "",
     sourceFileName: "",
     sourceHash,
+    networkingStage: "NOT_STARTED",
+    networkingContact: "",
+    networkingNotes: "",
+    interestOverride: "AUTO",
+    skillOverrides: {},
+    ageOverride: false,
+    manualAdjustment: 0,
+    manualPriority: "NORMAL",
+    pinned: false,
+    recommendationOverride: "AUTO",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -453,6 +463,16 @@ export function createJob(
     jobUrl: jobUrl.trim(),
     sourceFileName,
     sourceHash,
+    networkingStage: "NOT_STARTED",
+    networkingContact: "",
+    networkingNotes: "",
+    interestOverride: "AUTO",
+    skillOverrides: {},
+    ageOverride: false,
+    manualAdjustment: 0,
+    manualPriority: "NORMAL",
+    pinned: false,
+    recommendationOverride: "AUTO",
     createdAt: now,
     updatedAt: now
   };

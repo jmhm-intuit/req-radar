@@ -2,155 +2,104 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, ReactNode } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
+  ArrowDownUp,
   Briefcase,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
-  Clock,
+  Clock3,
   Database,
   Download,
   ExternalLink,
+  FileStack,
   FileText,
   GitCompare,
-  Info,
   LayoutDashboard,
   Link2,
   Menu,
+  Network,
+  Pin,
+  PinOff,
   Plus,
   RefreshCw,
   Save,
   Search,
-  Send,
   Settings,
-  ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
+  Target,
   Trash2,
   Upload,
+  UserRound,
   X
 } from "lucide-react";
-import { demoJobs } from "./data/demoJobs";
-import {
-  buildComparisons,
-  checkDuplicates,
-  createJob,
-  formatStatus,
-  normalizeTitle,
-  parseJobText
-} from "./lib/jobs";
+import { assessJob, networkingStageLabel, recommendationLabel } from "./lib/assessment";
+import { buildComparisons, checkDuplicates, createJob, extractSkillsFromText, formatStatus, parseJobText } from "./lib/jobs";
 import { extractSourceFromFile, extractSourceFromText } from "./lib/pdf";
 import {
   buildExportPayload,
   buildSyncPreview,
   downloadJson,
   loadJobs,
+  loadProfile,
   loadSettings,
   mergeBackup,
   parseBackupFile,
   saveJobs,
+  saveProfile,
   saveSettings
 } from "./lib/storage";
 import type {
   AppSettings,
-  DuplicateCheck,
-  JobComparison,
+  BatchResult,
+  InterestLevel,
+  JobAssessment,
   JobReq,
   JobStatus,
+  ManualPriority,
+  NetworkingStage,
   ParsedBackup,
-  ParsedJob,
-  SyncPreview
+  RecommendationOverride,
+  SkillMatchStatus,
+  SyncPreview,
+  UserProfile
 } from "./types";
 
-type View = "overview" | "jobs" | "comparisons";
-type ModalStep = "source" | "review" | "decision";
+type View = "overview" | "jobs" | "profile" | "comparisons";
+type SortMode = "RANK" | "NEWEST" | "SKILLS" | "INTEREST" | "AGE" | "TITLE";
+type Toast = { id: number; title: string; message: string; kind: "success" | "error" | "info" };
 
-type Draft = {
-  parsed: ParsedJob;
-  sourceFileName: string;
-  sourceHash: string;
-  duplicateCheck: DuplicateCheck;
-  status: JobStatus;
-  decisionReason: string;
-  notes: string;
-  jobUrl: string;
-};
+const STATUS_OPTIONS: JobStatus[] = ["NEW", "PURSUING", "MAYBE", "APPLIED", "NOT_PURSUING"];
+const NETWORKING_OPTIONS: NetworkingStage[] = [
+  "NOT_STARTED", "CONTACT_IDENTIFIED", "MESSAGE_PLANNED", "CONTACTED", "RESPONSE_RECEIVED",
+  "CONVERSATION_SCHEDULED", "CONVERSATION_COMPLETED", "REFERRAL_REQUESTED", "REFERRAL_RECEIVED", "NOT_NEEDED"
+];
+const INTEREST_OPTIONS: InterestLevel[] = ["AUTO", "HIGH", "MEDIUM", "LOW", "NONE"];
+const PRIORITY_OPTIONS: ManualPriority[] = ["HIGH", "NORMAL", "LOW", "ARCHIVE"];
+const RECOMMENDATION_OPTIONS: RecommendationOverride[] = ["AUTO", "PURSUE", "CONSIDER", "LOW_PRIORITY", "DO_NOT_PURSUE"];
+const SKILL_OPTIONS: SkillMatchStatus[] = ["MATCH", "PARTIAL", "NO_MATCH", "CRITICAL_GAP", "NOT_RELEVANT"];
+const PAGE_SIZE = 20;
 
-type Toast = {
-  id: number;
-  title: string;
-  message: string;
-  kind: "success" | "error" | "info";
-};
-
-const STATUS_META: Record<
-  JobStatus,
-  { label: string; description: string; className: string }
-> = {
-  NEW: {
-    label: "New",
-    description: "Uploaded and waiting for a decision.",
-    className: "status-new"
-  },
-  PURSUING: {
-    label: "Pursuing",
-    description: "A role you plan to actively pursue.",
-    className: "status-pursuing"
-  },
-  MAYBE: {
-    label: "Maybe",
-    description: "Keep it open while you gather more information.",
-    className: "status-maybe"
-  },
-  NOT_PURSUING: {
-    label: "Not pursuing",
-    description: "Reviewed and intentionally passed.",
-    className: "status-not-pursuing"
-  },
-  APPLIED: {
-    label: "Applied",
-    description: "Your application has been submitted.",
-    className: "status-applied"
-  }
-};
-
-const STATUS_OPTIONS = Object.keys(STATUS_META) as JobStatus[];
+function AppVersion() {
+  return <span className="app-version" title={`Build ${__BUILD_DATE__}`}>ReqRadar v{__APP_VERSION__}</span>;
+}
 
 function formatDate(value: string): string {
   if (!value) return "Not specified";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(date);
-}
-
-function relativeDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const delta = Date.now() - date.getTime();
-  const days = Math.max(0, Math.floor(delta / 86400000));
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 30) return `${days} days ago`;
-  return formatDate(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function statusClass(status: JobStatus): string {
-  return STATUS_META[status].className;
+  return `status-${status.toLowerCase().replace("_", "-")}`;
 }
 
-function scoreClass(score: number): string {
-  if (score >= 85) return "score-high";
-  if (score >= 65) return "score-medium";
-  return "score-low";
+function recommendationClass(value: JobAssessment["recommendation"]): string {
+  return `rec-${value.toLowerCase().replace(/_/g, "-")}`;
 }
 
-function comparisonLabel(type: JobComparison["type"]): string {
-  if (type === "POSSIBLE_DUPLICATE") return "Possible duplicate";
-  if (type === "HIGHLY_SIMILAR") return "Highly similar";
-  if (type === "RELATED") return "Related req";
-  return "Low similarity";
+function skillClass(value: SkillMatchStatus): string {
+  return `skill-${value.toLowerCase().replace(/_/g, "-")}`;
 }
 
 function normalizeHttpUrl(value: string): string {
@@ -158,1344 +107,389 @@ function normalizeHttpUrl(value: string): string {
   if (!trimmed) return "";
   const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   const parsed = new URL(candidate);
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("Use an http:// or https:// URL.");
-  }
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Use an http:// or https:// URL.");
   return parsed.toString();
 }
 
-function openExternalUrl(value: string): void {
-  const url = normalizeHttpUrl(value);
-  if (!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
+function listFromText(value: string): string[] {
+  return [...new Set(value.split(/[,\n;]/).map((item) => item.trim()).filter(Boolean))];
 }
 
-function AppVersion({ compact = false }: { compact?: boolean }) {
-  const buildDate = new Date(__BUILD_DATE__);
-  const buildLabel = Number.isNaN(buildDate.getTime())
-    ? __BUILD_DATE__
-    : buildDate.toLocaleString();
-
-  return (
-    <div
-      className={`app-version ${compact ? "compact" : ""}`}
-      title={`ReqRadar v${__APP_VERSION__} — build generated ${buildLabel}`}
-      aria-label={`ReqRadar version ${__APP_VERSION__}`}
-    >
-      <span className="version-dot" />
-      <span>ReqRadar v{__APP_VERSION__}</span>
-    </div>
-  );
+function Empty({ icon, title, text, action }: { icon: ReactNode; title: string; text: string; action?: ReactNode }) {
+  return <div className="empty"><div className="empty-icon">{icon}</div><h3>{title}</h3><p>{text}</p>{action}</div>;
 }
 
-function StatusBadge({ status }: { status: JobStatus }) {
-  return <span className={`status-badge ${statusClass(status)}`}>{formatStatus(status)}</span>;
+function Score({ value, label }: { value: number; label: string }) {
+  const tone = value >= 75 ? "good" : value >= 50 ? "mid" : "bad";
+  return <span className={`score ${tone}`}><strong>{value}%</strong><small>{label}</small></span>;
 }
 
-function EmptyState({
-  icon,
-  title,
-  description,
-  action
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="empty-state">
-      <div className="empty-icon">{icon}</div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-      {action}
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  detail,
-  icon,
-  tone
-}: {
-  label: string;
-  value: number;
-  detail: string;
-  icon: ReactNode;
-  tone: string;
-}) {
-  return (
-    <article className={`stat-card ${tone}`}>
-      <div className="stat-head">
-        <span>{label}</span>
-        <span className="stat-icon">{icon}</span>
-      </div>
-      <strong>{value}</strong>
-      <p>{detail}</p>
-    </article>
-  );
+function Stat({ icon, label, value, detail }: { icon: ReactNode; label: string; value: number; detail: string }) {
+  return <article className="stat"><div>{icon}<span>{label}</span></div><strong>{value}</strong><p>{detail}</p></article>;
 }
 
 function JobTable({
   jobs,
+  assessments,
   onOpen,
-  onStatusChange,
-  onOpenLink,
-  onEditLink,
+  onUpdate,
   compact = false
 }: {
   jobs: JobReq[];
+  assessments: Map<string, JobAssessment>;
   onOpen: (id: string) => void;
-  onStatusChange: (id: string, status: JobStatus) => void;
-  onOpenLink: (job: JobReq) => void;
-  onEditLink: (job: JobReq) => void;
+  onUpdate: (id: string, changes: Partial<JobReq>) => void;
   compact?: boolean;
 }) {
-  if (!jobs.length) {
-    return (
-      <EmptyState
-        icon={<Briefcase size={24} />}
-        title="No requisitions found"
-        description="Upload a job posting or adjust your filters."
-      />
-    );
-  }
-
+  if (!jobs.length) return <Empty icon={<Briefcase />} title="No requisitions found" text="Adjust your filters or upload more job requisitions." />;
   return (
-    <div className="table-scroll">
-      <table className="job-table">
-        <thead>
-          <tr>
-            <th>Position</th>
-            <th>Team</th>
-            {!compact && <th>Location</th>}
-            <th>Decision</th>
-            {!compact && <th>Links</th>}
-            <th>Added</th>
-            <th aria-label="Open" />
-          </tr>
-        </thead>
-        <tbody>
-          {jobs.map((job) => (
-            <tr key={job.id}>
-              <td>
-                <button className="job-title-button" onClick={() => onOpen(job.id)}>
-                  <span>{job.title}</span>
-                  <small>
-                    {job.jobId || "No Job ID"}
-                    {job.isDemo ? <span className="demo-tag">Demo</span> : null}
-                  </small>
-                </button>
-              </td>
-              <td>
-                <span className="table-primary">{job.team || job.category || "Not specified"}</span>
-                <small>{job.hiringManager || "Hiring manager not specified"}</small>
-              </td>
-              {!compact && (
-                <td>
-                  <span className="table-primary">
-                    {job.locations.length ? job.locations.join("; ") : "Not specified"}
-                  </span>
-                  <small>{job.seniority}</small>
-                </td>
-              )}
-              <td>
-                <select
-                  className={`status-select ${statusClass(job.status)}`}
-                  value={job.status}
-                  onChange={(event) =>
-                    onStatusChange(job.id, event.target.value as JobStatus)
-                  }
-                  aria-label={`Decision status for ${job.title}`}
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_META[status].label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              {!compact && (
-                <td>
-                  <div className="row-link-actions">
-                    {job.jobUrl ? (
-                      <>
-                        <button className="link-button" onClick={() => onOpenLink(job)}>
-                          <ExternalLink size={14} /> Open req
-                        </button>
-                        <button className="icon-button subtle" onClick={() => onEditLink(job)} aria-label={`Edit link for ${job.title}`}>
-                          <Link2 size={15} />
-                        </button>
-                      </>
-                    ) : (
-                      <button className="link-button muted" onClick={() => onEditLink(job)}>
-                        <Plus size={14} /> Add link
-                      </button>
-                    )}
-                  </div>
-                </td>
-              )}
-              <td>
-                <span className="table-primary">{relativeDate(job.createdAt)}</span>
-                <small>{job.datePosted ? `Posted ${job.datePosted}` : "Posting date unavailable"}</small>
-              </td>
-              <td>
-                <div className="row-end-actions">
-                  {compact ? (
-                    job.jobUrl ? (
-                      <button className="icon-button" onClick={() => onOpenLink(job)} aria-label={`Open job requisition for ${job.title}`}>
-                        <ExternalLink size={17} />
-                      </button>
-                    ) : (
-                      <button className="icon-button" onClick={() => onEditLink(job)} aria-label={`Add link for ${job.title}`}>
-                        <Link2 size={17} />
-                      </button>
-                    )
-                  ) : null}
-                  <button className="icon-button" onClick={() => onOpen(job.id)} aria-label="Open requisition">
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
+    <div className="table-wrap">
+      <table className="jobs-table">
+        <thead><tr>
+          <th>Rank</th><th>Job requisition</th><th>Status</th><th>Recommendation</th><th>Skills</th>
+          {!compact && <th>Interest</th>}<th>Age</th><th>Networking</th>{!compact && <th>Manual</th>}<th />
+        </tr></thead>
+        <tbody>{jobs.map((job) => {
+          const assessment = assessments.get(job.id)!;
+          return <tr key={job.id} className={job.pinned ? "pinned-row" : ""}>
+            <td>
+              <div className="rank-cell">
+                <button className="icon-btn" onClick={() => onUpdate(job.id, { pinned: !job.pinned })} title={job.pinned ? "Unpin" : "Pin to top"}>{job.pinned ? <Pin size={16} /> : <PinOff size={16} />}</button>
+                <strong>{assessment.finalScore}</strong>
+              </div>
+            </td>
+            <td>
+              <button className="job-link" onClick={() => onOpen(job.id)}><strong>{job.title}</strong><span>{job.jobId || "No Job ID"} · {job.team || job.category || "Team not specified"}</span></button>
+            </td>
+            <td><select className={`compact-select ${statusClass(job.status)}`} value={job.status} onChange={(event) => onUpdate(job.id, { status: event.target.value as JobStatus })}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}</select></td>
+            <td><span className={`recommendation ${recommendationClass(assessment.recommendation)}`}>{recommendationLabel(assessment.recommendation)}</span><small className="table-sub">{assessment.nextAction}</small></td>
+            <td><Score value={assessment.skillsScore} label={assessment.criticalGaps.length ? `${assessment.criticalGaps.length} critical` : "fit"} /></td>
+            {!compact && <td><Score value={assessment.interestScore} label={assessment.interestLevel.toLowerCase()} /></td>}
+            <td><span className={assessment.ageDays !== null && assessment.ageDays > 90 && !job.ageOverride ? "age-old" : "age-label"}>{assessment.ageLabel}</span></td>
+            <td><select className="compact-select network-select" value={job.networkingStage} onChange={(event) => onUpdate(job.id, { networkingStage: event.target.value as NetworkingStage })}>{NETWORKING_OPTIONS.map((stage) => <option key={stage} value={stage}>{networkingStageLabel(stage)}</option>)}</select></td>
+            {!compact && <td><div className="manual-cell"><input type="number" min={-20} max={20} value={job.manualAdjustment} onChange={(event) => onUpdate(job.id, { manualAdjustment: Math.max(-20, Math.min(20, Number(event.target.value) || 0)) })} title="Manual rank adjustment" /><span>{job.manualPriority.toLowerCase()}</span></div></td>}
+            <td><div className="row-actions">{job.jobUrl && <button className="icon-btn" onClick={() => window.open(job.jobUrl, "_blank", "noopener,noreferrer")} title="Open job req"><ExternalLink size={16} /></button>}<button className="icon-btn" onClick={() => onOpen(job.id)}><ChevronRight size={18} /></button></div></td>
+          </tr>;
+        })}</tbody>
       </table>
     </div>
   );
 }
 
-function App() {
+export default function App() {
   const [jobs, setJobs] = useState<JobReq[]>(() => loadJobs());
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
+  const [profileSkillsText, setProfileSkillsText] = useState(() => loadProfile().skills.join(", "));
+  const [profileInterestsText, setProfileInterestsText] = useState(() => loadProfile().interests.join(", "));
+  const [profileAvoidText, setProfileAvoidText] = useState(() => loadProfile().avoid.join(", "));
   const [view, setView] = useState<View>("overview");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | JobStatus>("ALL");
+  const [sortMode, setSortMode] = useState<SortMode>("RANK");
+  const [page, setPage] = useState(1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalStep, setModalStep] = useState<ModalStep>("source");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [pastedText, setPastedText] = useState("");
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [modalError, setModalError] = useState("");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [pastedText, setPastedText] = useState("");
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
+  const [busy, setBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [recruitingUrlDraft, setRecruitingUrlDraft] = useState(settings.recruitingPortalUrl);
   const [pendingBackup, setPendingBackup] = useState<ParsedBackup | null>(null);
   const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
   const [syncMode, setSyncMode] = useState<"merge" | "replace">("merge");
   const [syncError, setSyncError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const syncInputRef = useRef<HTMLInputElement>(null);
+  const [portalDraft, setPortalDraft] = useState(settings.recruitingPortalUrl);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const syncRef = useRef<HTMLInputElement>(null);
+  const resumeRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    saveJobs(jobs);
-  }, [jobs]);
+  useEffect(() => saveJobs(jobs), [jobs]);
+  useEffect(() => saveSettings(settings), [settings]);
+  useEffect(() => saveProfile(profile), [profile]);
 
-  useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
-
+  const assessmentMap = useMemo(() => new Map(jobs.map((job) => [job.id, assessJob(job, profile)])), [jobs, profile]);
   const comparisons = useMemo(() => buildComparisons(jobs), [jobs]);
-  const jobById = useMemo(() => new Map(jobs.map((job) => [job.id, job])), [jobs]);
-  const selectedJob = selectedJobId ? jobById.get(selectedJobId) || null : null;
+  const selectedJob = jobs.find((job) => job.id === selectedJobId) || null;
+  const selectedAssessment = selectedJob ? assessmentMap.get(selectedJob.id) || null : null;
 
   const filteredJobs = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return jobs
-      .filter((job) => statusFilter === "ALL" || job.status === statusFilter)
-      .filter((job) => {
-        if (!term) return true;
-        return [
-          job.title,
-          job.jobId,
-          job.category,
-          job.team,
-          job.hiringManager,
-          job.recruiter,
-          job.locations.join(" "),
-          job.skills.join(" "),
-          job.jobUrl
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(term);
-      })
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }, [jobs, search, statusFilter]);
+    const hidden = new Set(settings.hiddenStatuses);
+    const items = jobs.filter((job) => !hidden.has(job.status)).filter((job) => {
+      if (!term) return true;
+      return [job.title, job.jobId, job.team, job.category, job.hiringManager, job.recruiter, job.skills.join(" "), job.locations.join(" ")].join(" ").toLowerCase().includes(term);
+    });
+    return items.sort((a, b) => {
+      const aa = assessmentMap.get(a.id)!;
+      const bb = assessmentMap.get(b.id)!;
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (sortMode === "RANK") return bb.finalScore - aa.finalScore;
+      if (sortMode === "SKILLS") return bb.skillsScore - aa.skillsScore;
+      if (sortMode === "INTEREST") return bb.interestScore - aa.interestScore;
+      if (sortMode === "AGE") return (aa.ageDays ?? 9999) - (bb.ageDays ?? 9999);
+      if (sortMode === "TITLE") return a.title.localeCompare(b.title);
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [jobs, search, settings.hiddenStatuses, sortMode, assessmentMap]);
 
-  const stats = useMemo(
-    () => ({
-      total: jobs.length,
-      pursuing: jobs.filter((job) => job.status === "PURSUING").length,
-      needsDecision: jobs.filter((job) => job.status === "NEW" || job.status === "MAYBE").length,
-      applied: jobs.filter((job) => job.status === "APPLIED").length,
-      duplicateAlerts: comparisons.filter((comparison) => comparison.type === "POSSIBLE_DUPLICATE").length
-    }),
-    [jobs, comparisons]
-  );
+  useEffect(() => setPage(1), [search, sortMode, settings.hiddenStatuses]);
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
+  const pagedJobs = filteredJobs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const topSkills = useMemo(() => {
-    const counts = new Map<string, number>();
-    jobs.forEach((job) =>
-      job.skills.forEach((skill) => counts.set(skill, (counts.get(skill) || 0) + 1))
-    );
-    return [...counts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 5);
-  }, [jobs]);
+  const stats = useMemo(() => ({
+    total: jobs.length,
+    pursue: jobs.filter((job) => assessmentMap.get(job.id)?.recommendation === "PURSUE").length,
+    old: jobs.filter((job) => (assessmentMap.get(job.id)?.ageDays || 0) > 90 && !job.ageOverride).length,
+    networking: jobs.filter((job) => assessmentMap.get(job.id)?.recommendation === "PURSUE" && job.networkingStage === "NOT_STARTED").length,
+    critical: jobs.filter((job) => (assessmentMap.get(job.id)?.criticalGaps.length || 0) > 0).length
+  }), [jobs, assessmentMap]);
 
-  const pageCopy: Record<View, { title: string; subtitle: string }> = {
-    overview: {
-      title: "Recruiting overview",
-      subtitle: "Track decisions, catch duplicates, and compare open requisitions."
-    },
-    jobs: {
-      title: "Job requisitions",
-      subtitle: "Search, filter, and update the roles in your personal pipeline."
-    },
-    comparisons: {
-      title: "Req comparisons",
-      subtitle: "See possible duplicates and related opportunities across your portfolio."
-    }
-  };
-
-  function showToast(title: string, message: string, kind: Toast["kind"] = "success") {
-    const id = Date.now() + Math.floor(Math.random() * 1000);
+  function toast(title: string, message: string, kind: Toast["kind"] = "success") {
+    const id = Date.now() + Math.random();
     setToasts((current) => [...current, { id, title, message, kind }]);
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 4400);
+    window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 4200);
   }
 
-  function changeView(next: View) {
-    setView(next);
-    setSidebarOpen(false);
+  function updateJob(id: string, changes: Partial<JobReq>) {
+    setJobs((current) => current.map((job) => job.id === id ? { ...job, ...changes, updatedAt: new Date().toISOString() } : job));
   }
 
-  function resetModal() {
-    setModalOpen(false);
-    setModalStep("source");
-    setSelectedFile(null);
-    setPastedText("");
-    setDraft(null);
-    setBusy(false);
-    setModalError("");
-    setDragActive(false);
+  function toggleHiddenStatus(status: JobStatus) {
+    setSettings((current) => {
+      const hidden = new Set(current.hiddenStatuses);
+      hidden.has(status) ? hidden.delete(status) : hidden.add(status);
+      return { ...current, hiddenStatuses: [...hidden], updatedAt: new Date().toISOString() };
+    });
   }
 
   function openUpload() {
-    setModalOpen(true);
-    setModalStep("source");
-    setModalError("");
+    setSelectedFiles([]);
+    setPastedText("");
+    setBatchResults([]);
+    setUploadOpen(true);
   }
 
-  function chooseFile(file: File | null) {
-    if (!file) return;
-    setSelectedFile(file);
+  function chooseFiles(files: FileList | File[]) {
+    const next = Array.from(files).filter((file) => /\.(pdf|txt)$/i.test(file.name));
+    setSelectedFiles((current) => [...current, ...next].filter((file, index, array) => array.findIndex((item) => item.name === file.name && item.size === file.size) === index));
     setPastedText("");
-    setModalError("");
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragActive(false);
-    chooseFile(event.dataTransfer.files?.[0] || null);
+    chooseFiles(event.dataTransfer.files);
   }
 
-  async function analyzeSource() {
-    setModalError("");
+  async function processBatch() {
     setBusy(true);
+    setBatchResults([]);
+    const working = [...jobs];
+    const results: BatchResult[] = [];
+    const files = [...selectedFiles];
     try {
-      const source = selectedFile
-        ? await extractSourceFromFile(selectedFile)
-        : await extractSourceFromText(pastedText);
-      const parsed = parseJobText(source.text);
-      const duplicateCheck = checkDuplicates(parsed, source.hash, jobs);
-      setDraft({
-        parsed,
-        sourceFileName: source.fileName,
-        sourceHash: source.hash,
-        duplicateCheck,
-        status: "NEW",
-        decisionReason: "",
-        notes: "",
-        jobUrl: ""
-      });
-      setModalStep("review");
-    } catch (error) {
-      setModalError(error instanceof Error ? error.message : "The job posting could not be analyzed.");
+      if (!files.length && pastedText.trim()) {
+        const source = await extractSourceFromText(pastedText);
+        const parsed = parseJobText(source.text);
+        const duplicate = checkDuplicates(parsed, source.hash, working);
+        if (duplicate.exactMatch) results.push({ fileName: source.fileName, status: "DUPLICATE", title: parsed.title, detail: `Already uploaded as ${duplicate.exactMatch.title}` });
+        else {
+          const job = createJob(parsed, "NEW", "", "", "", source.fileName, source.hash);
+          working.unshift(job);
+          results.push({ fileName: source.fileName, status: "ADDED", title: job.title, detail: "Added with New status" });
+        }
+      }
+      for (const file of files) {
+        try {
+          const source = await extractSourceFromFile(file);
+          const parsed = parseJobText(source.text);
+          const duplicate = checkDuplicates(parsed, source.hash, working);
+          if (duplicate.exactMatch) results.push({ fileName: file.name, status: "DUPLICATE", title: parsed.title, detail: `Already uploaded as ${duplicate.exactMatch.title}` });
+          else {
+            const job = createJob(parsed, "NEW", "", "", "", source.fileName, source.hash);
+            working.unshift(job);
+            results.push({ fileName: file.name, status: "ADDED", title: job.title, detail: duplicate.comparisons[0]?.score ? `${duplicate.comparisons[0].score}% similar to an existing req` : "Added with New status" });
+          }
+        } catch (error) {
+          results.push({ fileName: file.name, status: "ERROR", title: "Could not process", detail: error instanceof Error ? error.message : "Unknown processing error" });
+        }
+      }
+      setJobs(working);
+      setBatchResults(results);
+      const added = results.filter((item) => item.status === "ADDED").length;
+      toast("Batch upload complete", `${added} requisition${added === 1 ? "" : "s"} added.`);
     } finally {
       setBusy(false);
     }
   }
 
-  function updateParsed<K extends keyof ParsedJob>(key: K, value: ParsedJob[K]) {
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            parsed: {
-              ...current.parsed,
-              [key]: value,
-              ...(key === "title" ? { normalizedTitle: normalizeTitle(String(value)) } : {})
-            }
-          }
-        : current
-    );
-  }
-
-  function moveToDecision() {
-    if (!draft) return;
-    const duplicateCheck = checkDuplicates(draft.parsed, draft.sourceHash, jobs);
-    let jobUrl = "";
-    try {
-      jobUrl = normalizeHttpUrl(draft.jobUrl);
-    } catch (error) {
-      setModalError(error instanceof Error ? error.message : "Enter a valid job requisition URL.");
-      return;
-    }
-    setDraft({ ...draft, duplicateCheck, jobUrl });
-    if (duplicateCheck.exactMatch) {
-      setModalError("This requisition is already in ReqRadar. Open the existing record instead.");
-      return;
-    }
-    if (!draft.parsed.title.trim()) {
-      setModalError("Add a job title before continuing.");
-      return;
-    }
-    setModalError("");
-    setModalStep("decision");
-  }
-
-  function saveDraft() {
-    if (!draft) return;
-    const duplicateCheck = checkDuplicates(draft.parsed, draft.sourceHash, jobs);
-    if (duplicateCheck.exactMatch) {
-      setModalStep("review");
-      setDraft({ ...draft, duplicateCheck });
-      setModalError("This requisition is already in ReqRadar and was not saved again.");
-      return;
-    }
-
-    const job = createJob(
-      draft.parsed,
-      draft.status,
-      draft.decisionReason,
-      draft.notes,
-      draft.jobUrl,
-      draft.sourceFileName,
-      draft.sourceHash
-    );
-    setJobs((current) => [job, ...current]);
-    resetModal();
-    setSelectedJobId(job.id);
-    showToast("Job req saved", `${job.title} was added to your workspace.`);
-  }
-
-  function updateJob(id: string, changes: Partial<JobReq>) {
-    setJobs((current) =>
-      current.map((job) =>
-        job.id === id ? { ...job, ...changes, updatedAt: new Date().toISOString() } : job
-      )
-    );
-  }
-
-  function changeJobStatus(id: string, status: JobStatus) {
-    const job = jobs.find((candidate) => candidate.id === id);
-    if (!job || job.status === status) return;
-
-    updateJob(id, { status });
-    showToast(
-      "Status updated",
-      `${job.title} is now ${STATUS_META[status].label}.`,
-      "success"
-    );
-  }
-
-  function deleteJob(job: JobReq) {
-    if (!window.confirm(`Delete "${job.title}" from ReqRadar?`)) return;
-    setJobs((current) => current.filter((candidate) => candidate.id !== job.id));
-    setSelectedJobId(null);
-    showToast("Job req deleted", "The requisition was removed from this browser.", "info");
-  }
-
-  function loadDemoPortfolio() {
-    const existingIds = new Set(jobs.map((job) => job.id));
-    const additions = demoJobs.filter((job) => !existingIds.has(job.id));
-    if (!additions.length) {
-      showToast("Demo already loaded", "The fictional demo portfolio is already available.", "info");
-      return;
-    }
-    setJobs((current) => [...additions, ...current]);
-    showToast("Demo portfolio loaded", `${additions.length} fictional requisitions were added.`);
-  }
-
-  function removeDemoPortfolio() {
-    const demoCount = jobs.filter((job) => job.isDemo).length;
-    if (!demoCount) return;
-    setJobs((current) => current.filter((job) => !job.isDemo));
-    if (selectedJob?.isDemo) setSelectedJobId(null);
-    showToast("Demo data removed", `${demoCount} fictional requisitions were removed.`, "info");
-  }
-
-  function openSyncDialog() {
-    setPendingBackup(null);
-    setSyncPreview(null);
-    setSyncMode("merge");
-    setSyncError("");
-    setSyncOpen(true);
-  }
-
-  function exportJobs() {
-    const exportedAt = new Date().toISOString();
-    const nextSettings = { ...settings, lastExportAt: exportedAt };
-    downloadJson(
-      `req-radar-backup-${exportedAt.slice(0, 10)}.json`,
-      buildExportPayload(jobs, nextSettings, exportedAt)
-    );
-    setSettings(nextSettings);
-    showToast("Backup downloaded", `${jobs.length} requisitions are ready to move to another device.`);
-  }
-
-  async function selectBackupFile(event: ChangeEvent<HTMLInputElement>) {
+  async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    event.target.value = "";
+    if (!file) return;
+    try {
+      const source = await extractSourceFromFile(file);
+      const detected = extractSkillsFromText(source.text);
+      const skills = [...new Set([...profile.skills, ...detected])];
+      setProfileSkillsText(skills.join(", "));
+      setProfile({ ...profile, resumeFileName: file.name, resumeText: source.text, skills, updatedAt: new Date().toISOString() });
+      toast("Resume analyzed", `${detected.length} skills detected. Review and add any missing skills.`);
+    } catch (error) {
+      toast("Resume could not be read", error instanceof Error ? error.message : "Unknown error", "error");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function exportBackup() {
+    const exportedAt = new Date().toISOString();
+    downloadJson(`req-radar-backup-${exportedAt.slice(0, 10)}.json`, buildExportPayload(jobs, settings, profile, exportedAt));
+    setSettings((current) => ({ ...current, lastExportAt: exportedAt, updatedAt: exportedAt }));
+    toast("Backup downloaded", `${jobs.length} requisitions and your profile were included.`);
+  }
+
+  async function importBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
     if (!file) return;
     try {
       const backup = parseBackupFile(await file.text());
       setPendingBackup(backup);
       setSyncPreview(buildSyncPreview(jobs, backup));
-      setSyncMode("merge");
       setSyncError("");
       setSyncOpen(true);
     } catch (error) {
-      setSyncError(error instanceof Error ? error.message : "The backup file could not be read.");
-      setPendingBackup(null);
-      setSyncPreview(null);
+      setSyncError(error instanceof Error ? error.message : "Could not read backup");
       setSyncOpen(true);
+    } finally {
+      event.target.value = "";
     }
   }
 
-  function applyPendingSync() {
+  function applySync() {
     if (!pendingBackup) return;
-    if (syncMode === "replace" && !window.confirm("Replace every requisition and link setting stored in this browser with this backup?")) {
-      return;
-    }
-    if (syncMode === "merge") {
-      const result = mergeBackup(jobs, settings, pendingBackup);
-      setJobs(result.jobs);
-      setSettings(result.settings);
-      showToast(
-        "Sync complete",
-        `${result.preview.newCount} added, ${result.preview.updatedCount} updated, ${result.preview.unchangedCount} unchanged.`
-      );
+    if (syncMode === "replace") {
+      setJobs(pendingBackup.jobs); setSettings(pendingBackup.settings); setProfile(pendingBackup.profile);
+      setProfileSkillsText(pendingBackup.profile.skills.join(", "));
+      setProfileInterestsText(pendingBackup.profile.interests.join(", "));
+      setProfileAvoidText(pendingBackup.profile.avoid.join(", "));
     } else {
-      setJobs([...pendingBackup.jobs].sort((left, right) => right.createdAt.localeCompare(left.createdAt)));
-      setSettings(pendingBackup.settings);
-      showToast("Backup restored", `${pendingBackup.jobs.length} requisitions replaced the local workspace.`);
+      const merged = mergeBackup(jobs, settings, profile, pendingBackup);
+      setJobs(merged.jobs); setSettings(merged.settings); setProfile(merged.profile);
+      setProfileSkillsText(merged.profile.skills.join(", "));
+      setProfileInterestsText(merged.profile.interests.join(", "));
+      setProfileAvoidText(merged.profile.avoid.join(", "));
     }
-    setPendingBackup(null);
-    setSyncPreview(null);
-    setSyncOpen(false);
+    setPendingBackup(null); setSyncPreview(null); setSyncOpen(false);
+    toast("Sync complete", "Your requisitions and profile are up to date.");
   }
 
-  function openSettingsDialog() {
-    setRecruitingUrlDraft(settings.recruitingPortalUrl);
-    setSettingsOpen(true);
-  }
-
-  function saveRecruitingPortal() {
+  function savePortal() {
     try {
-      const recruitingPortalUrl = normalizeHttpUrl(recruitingUrlDraft);
-      setSettings((current) => ({
-        ...current,
-        recruitingPortalUrl,
-        updatedAt: new Date().toISOString()
-      }));
+      const value = normalizeHttpUrl(portalDraft);
+      setSettings((current) => ({ ...current, recruitingPortalUrl: value, updatedAt: new Date().toISOString() }));
       setSettingsOpen(false);
-      showToast(
-        recruitingPortalUrl ? "Recruiting link saved" : "Recruiting link removed",
-        recruitingPortalUrl
-          ? "The recruiting page is now available from the sidebar."
-          : "The global recruiting shortcut was cleared."
-      );
+      toast("Link saved", value ? "Recruiting page shortcut updated." : "Recruiting page shortcut removed.");
     } catch (error) {
-      showToast(
-        "Invalid URL",
-        error instanceof Error ? error.message : "Enter a valid recruiting page URL.",
-        "error"
-      );
+      toast("Invalid URL", error instanceof Error ? error.message : "Check the URL", "error");
     }
   }
 
-  function openRecruitingPortal() {
-    if (!settings.recruitingPortalUrl) {
-      openSettingsDialog();
-      return;
-    }
-    try {
-      openExternalUrl(settings.recruitingPortalUrl);
-    } catch (error) {
-      showToast("Invalid recruiting URL", error instanceof Error ? error.message : "Update the saved link.", "error");
-    }
-  }
-
-  function openJobLink(job: JobReq) {
-    try {
-      openExternalUrl(job.jobUrl);
-    } catch (error) {
-      showToast("Invalid job URL", error instanceof Error ? error.message : "Edit the requisition link.", "error");
-    }
-  }
-
-  function editJobLink(job: JobReq) {
-    const value = window.prompt(
-      `Job requisition URL for "${job.title}". Leave blank to remove it.`,
-      job.jobUrl
-    );
-    if (value === null) return;
-    try {
-      const jobUrl = normalizeHttpUrl(value);
-      updateJob(job.id, { jobUrl });
-      showToast(jobUrl ? "Job link saved" : "Job link removed", jobUrl ? "Open it directly from the requisition list." : "The optional link was cleared.");
-    } catch (error) {
-      showToast("Invalid URL", error instanceof Error ? error.message : "Enter a valid requisition URL.", "error");
-    }
-  }
-
-  function clearWorkspace() {
-    if (!jobs.length) return;
-    if (!window.confirm("Delete every requisition stored in this browser? Export a backup first if needed.")) {
-      return;
-    }
-    setJobs([]);
+  function deleteSelected() {
+    if (!selectedJob || !window.confirm(`Delete ${selectedJob.title}?`)) return;
+    setJobs((current) => current.filter((job) => job.id !== selectedJob.id));
     setSelectedJobId(null);
-    showToast("Workspace cleared", "All local ReqRadar data was removed.", "info");
+    toast("Requisition deleted", selectedJob.title);
   }
 
-  function openExistingFromDuplicate() {
-    const existingId = draft?.duplicateCheck.exactMatch?.id;
-    if (!existingId) return;
-    resetModal();
-    setSelectedJobId(existingId);
-  }
+  const pageTitle = view === "overview" ? "Opportunity ranking" : view === "jobs" ? "All job requisitions" : view === "profile" ? "My skills & interests" : "Req comparisons";
+  const pageSubtitle = view === "profile" ? "Use your resume and preferences to personalize every assessment." : "Prioritize the strongest opportunities, act on networking, and filter a large portfolio quickly.";
 
-  return (
-    <div className="app-shell">
-      <aside className={`sidebar ${sidebarOpen ? "is-open" : ""}`}>
-        <div className="brand-row">
-          <button className="icon-button mobile-only" onClick={() => setSidebarOpen(false)} aria-label="Close navigation">
-            <X size={19} />
-          </button>
-          <div className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div>
-            <div className="brand-name">ReqRadar</div>
-            <div className="brand-subtitle">Recruiting workspace</div>
-          </div>
-        </div>
-
-        <nav className="main-nav" aria-label="Main navigation">
-          <button className={view === "overview" ? "nav-item active" : "nav-item"} onClick={() => changeView("overview")}>
-            <LayoutDashboard size={18} />
-            <span>Overview</span>
-          </button>
-          <button className={view === "jobs" ? "nav-item active" : "nav-item"} onClick={() => changeView("jobs")}>
-            <Briefcase size={18} />
-            <span>Job reqs</span>
-            <span className="nav-count">{jobs.length}</span>
-          </button>
-          <button className={view === "comparisons" ? "nav-item active" : "nav-item"} onClick={() => changeView("comparisons")}>
-            <GitCompare size={18} />
-            <span>Comparisons</span>
-            {comparisons.length ? <span className="nav-count">{comparisons.length}</span> : null}
-          </button>
-        </nav>
-
-        <div className="sidebar-spacer" />
-
-        <div className="privacy-card">
-          <ShieldCheck size={20} />
-          <div>
-            <strong>Browser-only workspace</strong>
-            <p>Files are parsed locally. Req data stays in this browser unless you export it.</p>
-          </div>
-        </div>
-
-        <div className="sidebar-quick-links">
-          <span>Quick access</span>
-          <button onClick={openRecruitingPortal}>
-            <ExternalLink size={16} />
-            <div>
-              <strong>{settings.recruitingPortalUrl ? "Open recruiting page" : "Add recruiting page"}</strong>
-              <small>{settings.recruitingPortalUrl ? "Opens in a new tab" : "Save your career-site shortcut"}</small>
-            </div>
-          </button>
-        </div>
-
-        <div className="sidebar-tools">
-          <button onClick={openSyncDialog}>
-            <RefreshCw size={15} /> Sync data
-          </button>
-          <button onClick={openSettingsDialog}>
-            <Settings size={15} /> Link settings
-          </button>
-          <button onClick={loadDemoPortfolio}>
-            <Sparkles size={15} /> Load demo portfolio
-          </button>
-          {jobs.some((job) => job.isDemo) ? (
-            <button onClick={removeDemoPortfolio}>
-              <Trash2 size={15} /> Remove demo data
-            </button>
-          ) : null}
-        </div>
-
-        <AppVersion />
-      </aside>
-
-      {sidebarOpen ? <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" /> : null}
-
-      <div className="page-area">
-        <header className="topbar">
-          <div className="topbar-title">
-            <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
-              <Menu size={20} />
-            </button>
-            <div>
-              <h1>{pageCopy[view].title}</h1>
-              <p>{pageCopy[view].subtitle}</p>
-            </div>
-          </div>
-          <div className="topbar-actions">
-            <AppVersion compact />
-            <label className="search-box">
-              <Search size={17} />
-              <input
-                type="search"
-                placeholder="Search reqs"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </label>
-            <button className="secondary-button sync-top-button" onClick={openSyncDialog}>
-              <RefreshCw size={16} /> Sync data
-            </button>
-            <button className="primary-button" onClick={openUpload}>
-              <Plus size={17} /> Add job req
-            </button>
-          </div>
-        </header>
-
-        <main className="content">
-          {view === "overview" ? (
-            <>
-              <section className="stats-grid">
-                <StatCard label="Total reqs" value={stats.total} detail="Stored in this browser" icon={<Briefcase size={18} />} tone="tone-blue" />
-                <StatCard label="Pursuing" value={stats.pursuing} detail="Active opportunities" icon={<ArrowRight size={18} />} tone="tone-green" />
-                <StatCard label="Needs decision" value={stats.needsDecision} detail="New or maybe" icon={<Clock size={18} />} tone="tone-amber" />
-                <StatCard label="Applied" value={stats.applied} detail="Applications submitted" icon={<Send size={18} />} tone="tone-purple" />
-              </section>
-
-              <section className="dashboard-grid">
-                <article className="panel main-panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2>Recent requisitions</h2>
-                      <p>Update your decision directly from the list.</p>
-                    </div>
-                    <button className="secondary-button" onClick={() => changeView("jobs")}>View all</button>
-                  </div>
-                  {jobs.length ? (
-                    <JobTable
-                      jobs={filteredJobs.slice(0, 6)}
-                      onOpen={setSelectedJobId}
-                      onStatusChange={changeJobStatus}
-                      onOpenLink={openJobLink}
-                      onEditLink={editJobLink}
-                      compact
-                    />
-                  ) : (
-                    <EmptyState
-                      icon={<Upload size={25} />}
-                      title="Upload your first job requisition"
-                      description="ReqRadar will extract its key fields, check for duplicates, and compare it with your portfolio."
-                      action={<button className="primary-button" onClick={openUpload}><Plus size={17} /> Add job req</button>}
-                    />
-                  )}
-                </article>
-
-                <aside className="panel insight-panel">
-                  <div className="panel-header compact-header">
-                    <div>
-                      <span className="eyebrow">Portfolio intelligence</span>
-                      <h2>What needs attention</h2>
-                    </div>
-                  </div>
-
-                  <div className={`insight-callout ${stats.duplicateAlerts ? "warning" : "success"}`}>
-                    {stats.duplicateAlerts ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
-                    <div>
-                      <strong>
-                        {stats.duplicateAlerts
-                          ? `${stats.duplicateAlerts} possible duplicate${stats.duplicateAlerts === 1 ? "" : "s"}`
-                          : "No duplicate alerts"}
-                      </strong>
-                      <p>
-                        {stats.duplicateAlerts
-                          ? "Review the highest-similarity pairs before pursuing both."
-                          : "Req IDs, file hashes, titles, skills, and context are being checked."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="insight-section">
-                    <h3>Most common skills</h3>
-                    {topSkills.length ? (
-                      <div className="skill-frequency-list">
-                        {topSkills.map(([skill, count]) => (
-                          <div key={skill}>
-                            <span>{skill}</span>
-                            <strong>{count}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="muted-copy">Skill demand will appear after you add requisitions.</p>
-                    )}
-                  </div>
-
-                  <button className="comparison-link" onClick={() => changeView("comparisons")}>
-                    Review comparisons <ArrowRight size={16} />
-                  </button>
-                </aside>
-              </section>
-            </>
-          ) : null}
-
-          {view === "jobs" ? (
-            <section className="panel">
-              <div className="panel-header jobs-header">
-                <div>
-                  <h2>All job requisitions</h2>
-                  <p>{filteredJobs.length} of {jobs.length} visible</p>
-                </div>
-                <div className="filter-actions">
-                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "ALL" | JobStatus)}>
-                    <option value="ALL">All statuses</option>
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>{STATUS_META[status].label}</option>
-                    ))}
-                  </select>
-                  <button className="secondary-button" onClick={openUpload}><Plus size={16} /> Add req</button>
-                </div>
-              </div>
-              <JobTable
-                jobs={filteredJobs}
-                onOpen={setSelectedJobId}
-                onStatusChange={changeJobStatus}
-                onOpenLink={openJobLink}
-                onEditLink={editJobLink}
-              />
-              {jobs.length ? (
-                <div className="panel-footer-actions">
-                  <button className="danger-button" onClick={clearWorkspace}><Trash2 size={15} /> Clear local workspace</button>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {view === "comparisons" ? (
-            <section className="comparison-page">
-              {comparisons.length ? (
-                comparisons.map((comparison) => {
-                  const source = jobById.get(comparison.sourceJobId);
-                  const target = jobById.get(comparison.targetJobId);
-                  if (!source || !target) return null;
-                  return (
-                    <article className="comparison-card" key={`${source.id}-${target.id}`}>
-                      <div className="comparison-score-column">
-                        <div className={`score-ring ${scoreClass(comparison.score)}`}>
-                          <strong>{comparison.score}%</strong>
-                          <span>similar</span>
-                        </div>
-                        <span className={`comparison-type ${comparison.type.toLowerCase()}`}>
-                          {comparisonLabel(comparison.type)}
-                        </span>
-                      </div>
-                      <div className="comparison-body">
-                        <div className="comparison-titles">
-                          <button onClick={() => setSelectedJobId(source.id)}>
-                            <small>{source.jobId || "No Job ID"}</small>
-                            <strong>{source.title}</strong>
-                            <span>{source.team || source.category || "Team not specified"}</span>
-                          </button>
-                          <GitCompare size={22} />
-                          <button onClick={() => setSelectedJobId(target.id)}>
-                            <small>{target.jobId || "No Job ID"}</small>
-                            <strong>{target.title}</strong>
-                            <span>{target.team || target.category || "Team not specified"}</span>
-                          </button>
-                        </div>
-                        <div className="score-breakdown">
-                          <span>Title <strong>{comparison.titleScore}%</strong></span>
-                          <span>Skills <strong>{comparison.skillScore}%</strong></span>
-                          <span>Context <strong>{comparison.contextScore}%</strong></span>
-                        </div>
-                        {comparison.sharedSkills.length ? (
-                          <div className="shared-skills">
-                            <span>Shared skills</span>
-                            <div className="tag-list">
-                              {comparison.sharedSkills.slice(0, 8).map((skill) => <span className="tag" key={skill}>{skill}</span>)}
-                            </div>
-                          </div>
-                        ) : null}
-                        <div className="comparison-reasons">
-                          {comparison.reasons.map((reason) => <span key={reason}><CheckCircle2 size={14} /> {reason}</span>)}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })
-              ) : (
-                <section className="panel">
-                  <EmptyState
-                    icon={<GitCompare size={26} />}
-                    title="No meaningful comparisons yet"
-                    description="Add at least two related requisitions. ReqRadar only shows pairs with a similarity score of 50% or higher."
-                    action={<button className="primary-button" onClick={openUpload}><Plus size={17} /> Add job req</button>}
-                  />
-                </section>
-              )}
-            </section>
-          ) : null}
-        </main>
+  return <div className="app-shell">
+    <button className={`mobile-backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
+    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+      <div className="brand"><div className="brand-mark"><Target /></div><div><strong>ReqRadar</strong><span>Job search command center</span></div></div>
+      <nav>
+        <button className={view === "overview" ? "active" : ""} onClick={() => { setView("overview"); setSidebarOpen(false); }}><LayoutDashboard /> Overview</button>
+        <button className={view === "jobs" ? "active" : ""} onClick={() => { setView("jobs"); setSidebarOpen(false); }}><Briefcase /> All requisitions</button>
+        <button className={view === "profile" ? "active" : ""} onClick={() => { setView("profile"); setSidebarOpen(false); }}><UserRound /> My profile</button>
+        <button className={view === "comparisons" ? "active" : ""} onClick={() => { setView("comparisons"); setSidebarOpen(false); }}><GitCompare /> Comparisons</button>
+      </nav>
+      <div className="sidebar-actions">
+        {settings.recruitingPortalUrl && <button onClick={() => window.open(settings.recruitingPortalUrl, "_blank", "noopener,noreferrer")}><ExternalLink /> Recruiting page</button>}
+        <button onClick={() => setSyncOpen(true)}><RefreshCw /> Sync devices</button>
+        <button onClick={() => { setPortalDraft(settings.recruitingPortalUrl); setSettingsOpen(true); }}><Settings /> Link settings</button>
       </div>
+      <AppVersion />
+    </aside>
 
-      <input ref={syncInputRef} type="file" accept="application/json,.json" hidden onChange={selectBackupFile} />
+    <main>
+      <header className="topbar">
+        <button className="menu-btn" onClick={() => setSidebarOpen(true)}><Menu /></button>
+        <div><h1>{pageTitle}</h1><p>{pageSubtitle}</p></div>
+        <div className="top-actions"><button className="secondary" onClick={() => setSyncOpen(true)}><RefreshCw /> Sync</button><button className="primary" onClick={openUpload}><FileStack /> Upload job reqs</button></div>
+      </header>
 
-      {syncOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.currentTarget === event.target) setSyncOpen(false);
-        }}>
-          <section className="modal-card sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-title">
-            <header className="modal-header">
-              <div>
-                <span className="eyebrow">Manual device sync</span>
-                <h2 id="sync-title">Move your ReqRadar data</h2>
-              </div>
-              <button className="icon-button" onClick={() => setSyncOpen(false)} aria-label="Close"><X size={20} /></button>
-            </header>
-
-            <div className="modal-body sync-body">
-              <p className="sync-intro">Download one backup from this device, then upload it on another device. Nothing is sent to a server.</p>
-
-              <div className="sync-action-grid">
-                <article className="sync-action-card">
-                  <div className="sync-card-icon"><Download size={22} /></div>
-                  <div>
-                    <h3>Download backup</h3>
-                    <p>Includes requisitions, statuses, notes, job links, and your recruiting-page setting.</p>
-                    <button className="primary-button" onClick={exportJobs} disabled={!jobs.length}>
-                      <Download size={16} /> Download {jobs.length || "empty"} reqs
-                    </button>
-                    <small>{settings.lastExportAt ? `Last export: ${formatDate(settings.lastExportAt)}` : "No backup downloaded yet"}</small>
-                  </div>
-                </article>
-
-                <article className="sync-action-card">
-                  <div className="sync-card-icon"><Upload size={22} /></div>
-                  <div>
-                    <h3>Upload backup</h3>
-                    <p>Preview what will be added or updated before changing this browser.</p>
-                    <button className="secondary-button" onClick={() => syncInputRef.current?.click()}>
-                      <Upload size={16} /> Choose JSON backup
-                    </button>
-                    <small>Backups from v1.5 and newer are supported.</small>
-                  </div>
-                </article>
-              </div>
-
-              {syncError ? <div className="error-banner"><AlertTriangle size={18} /><span>{syncError}</span></div> : null}
-
-              {pendingBackup && syncPreview ? (
-                <section className="sync-preview-section">
-                  <div className="section-heading">
-                    <div>
-                      <span className="eyebrow">Import preview</span>
-                      <h3>{syncPreview.totalIncoming} requisitions found</h3>
-                    </div>
-                    <span className="backup-version">Backup {pendingBackup.appVersion ? `v${pendingBackup.appVersion}` : "legacy"}</span>
-                  </div>
-
-                  <div className="sync-preview-grid">
-                    <div><strong>{syncPreview.newCount}</strong><span>New</span></div>
-                    <div><strong>{syncPreview.updatedCount}</strong><span>Updated</span></div>
-                    <div><strong>{syncPreview.unchangedCount}</strong><span>Unchanged</span></div>
-                    <div className={syncPreview.conflictCount ? "has-conflict" : ""}><strong>{syncPreview.conflictCount}</strong><span>Conflicts</span></div>
-                  </div>
-
-                  <div className="sync-mode-grid">
-                    <label className={syncMode === "merge" ? "sync-mode selected" : "sync-mode"}>
-                      <input type="radio" name="sync-mode" checked={syncMode === "merge"} onChange={() => setSyncMode("merge")} />
-                      <div><strong>Merge with this device</strong><span>Recommended. Add missing reqs and use the newest updated record.</span></div>
-                    </label>
-                    <label className={syncMode === "replace" ? "sync-mode selected danger" : "sync-mode danger"}>
-                      <input type="radio" name="sync-mode" checked={syncMode === "replace"} onChange={() => setSyncMode("replace")} />
-                      <div><strong>Replace local data</strong><span>Delete this browser's current workspace and restore the backup exactly.</span></div>
-                    </label>
-                  </div>
-
-                  {syncPreview.conflictCount ? (
-                    <div className="local-note warning"><AlertTriangle size={17} /><span>{syncPreview.conflictCount} same-time conflict(s) will keep the local record when merging.</span></div>
-                  ) : null}
-                </section>
-              ) : null}
+      {view === "profile" ? (
+        <section className="content profile-layout">
+          <article className="panel profile-hero"><div><span className="eyebrow">Personalized assessment</span><h2>Teach ReqRadar what you bring and what you want.</h2><p>Your confirmed skills drive Skills Fit. Interests and lower-interest work drive Interest Fit. Everything stays in this browser and in your manual backups.</p></div><button className="primary" onClick={() => resumeRef.current?.click()}><Upload /> Upload resume PDF</button><input ref={resumeRef} type="file" accept=".pdf,.txt" hidden onChange={uploadResume} /></article>
+          <article className="panel"><div className="panel-head"><div><h2>Skills profile</h2><p>{profile.resumeFileName ? `Resume: ${profile.resumeFileName}` : "Upload a resume or enter skills manually."}</p></div><span className="count-badge">{profile.skills.length} skills</span></div><label className="field"><span>Skills (comma or line separated)</span><textarea rows={10} value={profileSkillsText} onChange={(event) => { setProfileSkillsText(event.target.value); setProfile((current) => ({ ...current, skills: listFromText(event.target.value), updatedAt: new Date().toISOString() })); }} placeholder="Strategy, AI adoption, transformation, people leadership..." /></label><div className="skill-cloud">{profile.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></article>
+          <article className="panel split-panel"><label className="field"><span>Work that increases your interest</span><textarea rows={7} value={profileInterestsText} onChange={(event) => { setProfileInterestsText(event.target.value); setProfile((current) => ({ ...current, interests: listFromText(event.target.value), updatedAt: new Date().toISOString() })); }} /></label><label className="field"><span>Work you prefer to avoid</span><textarea rows={7} value={profileAvoidText} onChange={(event) => { setProfileAvoidText(event.target.value); setProfile((current) => ({ ...current, avoid: listFromText(event.target.value), updatedAt: new Date().toISOString() })); }} /></label></article>
+        </section>
+      ) : view === "comparisons" ? (
+        <section className="content"><article className="panel"><div className="panel-head"><div><h2>Most similar requisitions</h2><p>Potential duplicates and opportunities that may share a search strategy.</p></div><span className="count-badge">{comparisons.length}</span></div>{comparisons.length ? <div className="comparison-list">{comparisons.slice(0, 40).map((item) => { const a = jobs.find((job) => job.id === item.sourceJobId); const b = jobs.find((job) => job.id === item.targetJobId); if (!a || !b) return null; return <button key={`${item.sourceJobId}-${item.targetJobId}`} onClick={() => setSelectedJobId(a.id)}><span className="comparison-score">{item.score}%</span><div><strong>{a.title}</strong><span>vs. {b.title}</span><small>{item.sharedSkills.length} shared skills · {item.reasons.join(" · ")}</small></div><ChevronRight /></button>; })}</div> : <Empty icon={<GitCompare />} title="No strong comparisons yet" text="Upload more job requisitions to identify related roles." />}</article></section>
+      ) : (
+        <section className="content">
+          {view === "overview" && <div className="stats-grid"><Stat icon={<Briefcase />} label="Total reqs" value={stats.total} detail="Your complete local portfolio" /><Stat icon={<Target />} label="Recommended" value={stats.pursue} detail="Currently rated Pursue" /><Stat icon={<Clock3 />} label="Over 90 days" value={stats.old} detail="Defaulted to do not pursue" /><Stat icon={<Network />} label="Networking gaps" value={stats.networking} detail="High-fit roles not started" /><Stat icon={<AlertTriangle />} label="Critical gaps" value={stats.critical} detail="Mandatory requirements missing" /></div>}
+          <article className="panel jobs-panel">
+            <div className="panel-head responsive"><div><h2>{view === "overview" ? "Ranked opportunities" : "Job requisition portfolio"}</h2><p>Designed for 30+ requisitions with sorting, filters, pagination, and inline actions.</p></div><span className="count-badge">{filteredJobs.length} visible / {jobs.length}</span></div>
+            <div className="toolbar">
+              <label className="search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, team, skills, recruiter..." /></label>
+              <label className="sort"><ArrowDownUp /><select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}><option value="RANK">Final rank</option><option value="NEWEST">Newest added</option><option value="SKILLS">Skills Fit</option><option value="INTEREST">Interest Fit</option><option value="AGE">Freshest posting</option><option value="TITLE">Job title</option></select></label>
+              <button className="secondary" onClick={openUpload}><Plus /> Add reqs</button>
             </div>
+            <div className="status-filters"><span><SlidersHorizontal /> Show / hide statuses</span>{STATUS_OPTIONS.map((status) => { const hidden = settings.hiddenStatuses.includes(status); return <button key={status} className={`${statusClass(status)} ${hidden ? "off" : ""}`} onClick={() => toggleHiddenStatus(status)}>{hidden ? "Show" : "Hide"} {formatStatus(status)}</button>; })}</div>
+            <JobTable jobs={pagedJobs} assessments={assessmentMap} onOpen={setSelectedJobId} onUpdate={updateJob} compact={view === "overview"} />
+            {totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft /> Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => setPage((value) => value + 1)}>Next <ChevronRight /></button></div>}
+          </article>
+        </section>
+      )}
+    </main>
 
-            <footer className="modal-footer">
-              <button className="secondary-button" onClick={() => setSyncOpen(false)}>Close</button>
-              {pendingBackup ? (
-                <button className="primary-button" onClick={applyPendingSync}>
-                  <RefreshCw size={16} /> {syncMode === "merge" ? "Merge backup" : "Replace local data"}
-                </button>
-              ) : null}
-            </footer>
-          </section>
-        </div>
-      ) : null}
-
-      {settingsOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.currentTarget === event.target) setSettingsOpen(false);
-        }}>
-          <section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <header className="modal-header">
-              <div>
-                <span className="eyebrow">Quick access</span>
-                <h2 id="settings-title">Recruiting link settings</h2>
-              </div>
-              <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close"><X size={20} /></button>
-            </header>
-            <div className="modal-body">
-              <label className="field-label">
-                <span>Recruiting page URL</span>
-                <input
-                  type="url"
-                  value={recruitingUrlDraft}
-                  onChange={(event) => setRecruitingUrlDraft(event.target.value)}
-                  placeholder="https://careers.example.com/jobs"
-                />
-              </label>
-              <p className="settings-help">This global shortcut appears in the sidebar, opens in a new tab, and is included in your backup file.</p>
-              {settings.recruitingPortalUrl ? (
-                <button className="link-button preview-link" onClick={openRecruitingPortal}>
-                  <ExternalLink size={15} /> Open current recruiting page
-                </button>
-              ) : null}
-            </div>
-            <footer className="modal-footer">
-              <button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button>
-              <button className="primary-button" onClick={saveRecruitingPortal}><Save size={16} /> Save link</button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
-
-      {modalOpen ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.currentTarget === event.target && !busy) resetModal();
-        }}>
-          <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="upload-title">
-            <header className="modal-header">
-              <div>
-                <span className="eyebrow">New requisition</span>
-                <h2 id="upload-title">
-                  {modalStep === "source" ? "Add a job req" : modalStep === "review" ? "Review the analysis" : "Choose your decision"}
-                </h2>
-              </div>
-              <button className="icon-button" onClick={resetModal} disabled={busy} aria-label="Close"><X size={20} /></button>
-            </header>
-
-            <div className="stepper" aria-label="Upload progress">
-              {[
-                ["source", "1", "Upload"],
-                ["review", "2", "Review"],
-                ["decision", "3", "Decision"]
-              ].map(([step, number, label], index) => (
-                <div className="stepper-fragment" key={step}>
-                  {index ? <span className={`step-line ${modalStep === "decision" || (modalStep === "review" && index === 1) ? "complete" : ""}`} /> : null}
-                  <div className={`step ${modalStep === step ? "active" : (step === "source" || (step === "review" && modalStep === "decision")) ? "complete" : ""}`}>
-                    <span>{number}</span>
-                    <strong>{label}</strong>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="modal-body">
-              {modalError ? <div className="error-banner"><AlertTriangle size={18} /><span>{modalError}</span></div> : null}
-
-              {modalStep === "source" ? (
-                <div className="source-step">
-                  <div
-                    className={`drop-zone ${dragActive ? "drag-active" : ""} ${selectedFile ? "has-file" : ""}`}
-                    onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
-                    onDragLeave={() => setDragActive(false)}
-                    onDrop={handleDrop}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="application/pdf,text/plain,.pdf,.txt"
-                      hidden
-                      onChange={(event) => chooseFile(event.target.files?.[0] || null)}
-                    />
-                    {selectedFile ? (
-                      <>
-                        <div className="drop-icon success"><FileText size={24} /></div>
-                        <h3>{selectedFile.name}</h3>
-                        <p>{Math.max(1, Math.round(selectedFile.size / 1024))} KB selected</p>
-                        <button className="text-button" onClick={() => fileInputRef.current?.click()}>Choose another file</button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="drop-icon"><Upload size={25} /></div>
-                        <h3>Drop a PDF or TXT file here</h3>
-                        <p>Or choose a file from this device. Maximum size: 18 MB.</p>
-                        <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>Choose file</button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="or-divider"><span>or paste the posting</span></div>
-
-                  <label className="field-label">
-                    <span>Job description text</span>
-                    <textarea
-                      rows={8}
-                      placeholder="Paste the complete job posting here..."
-                      value={pastedText}
-                      onChange={(event) => { setPastedText(event.target.value); if (event.target.value) setSelectedFile(null); }}
-                    />
-                  </label>
-
-                  <div className="local-note"><ShieldCheck size={17} /><span>The document is parsed in your browser and is not sent to a server.</span></div>
-                </div>
-              ) : null}
-
-              {modalStep === "review" && draft ? (
-                <div className="review-step">
-                  {draft.duplicateCheck.exactMatch ? (
-                    <div className="duplicate-alert exact">
-                      <div className="duplicate-icon"><AlertTriangle size={22} /></div>
-                      <div>
-                        <span className="eyebrow">Exact duplicate found</span>
-                        <h3>This requisition is already in ReqRadar</h3>
-                        <p>
-                          Matched by {draft.duplicateCheck.exactReason === "JOB_ID" ? "Job ID" : "the uploaded file"}:
-                          <strong> {draft.duplicateCheck.exactMatch.title}</strong>
-                        </p>
-                        <button className="secondary-button" onClick={openExistingFromDuplicate}>Open existing req <ArrowRight size={16} /></button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="duplicate-alert clear">
-                      <div className="duplicate-icon"><CheckCircle2 size={22} /></div>
-                      <div>
-                        <span className="eyebrow">Duplicate check complete</span>
-                        <h3>No exact duplicate found</h3>
-                        <p>Job ID and source-file fingerprint are unique in this browser.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="review-summary">
-                    <div><strong>{draft.parsed.skills.length}</strong><span>Skills detected</span></div>
-                    <div><strong>{draft.parsed.responsibilities.length}</strong><span>Responsibilities</span></div>
-                    <div><strong>{draft.parsed.qualifications.length}</strong><span>Qualifications</span></div>
-                  </div>
-
-                  <div className="form-grid">
-                    <label className="field-label span-2"><span>Job title</span><input value={draft.parsed.title} onChange={(event) => updateParsed("title", event.target.value)} /></label>
-                    <label className="field-label"><span>Job ID</span><input value={draft.parsed.jobId} onChange={(event) => updateParsed("jobId", event.target.value)} placeholder="Example: 12345" /></label>
-                    <label className="field-label"><span>Seniority</span><input value={draft.parsed.seniority} onChange={(event) => updateParsed("seniority", event.target.value)} /></label>
-                    <label className="field-label span-2"><span>Job requisition URL (optional)</span><input type="url" value={draft.jobUrl} onChange={(event) => setDraft({ ...draft, jobUrl: event.target.value })} placeholder="Paste the direct link to this requisition" /></label>
-                    <label className="field-label"><span>Category</span><input value={draft.parsed.category} onChange={(event) => updateParsed("category", event.target.value)} /></label>
-                    <label className="field-label"><span>Team</span><input value={draft.parsed.team} onChange={(event) => updateParsed("team", event.target.value)} /></label>
-                    <label className="field-label"><span>Hiring manager</span><input value={draft.parsed.hiringManager} onChange={(event) => updateParsed("hiringManager", event.target.value)} /></label>
-                    <label className="field-label"><span>Recruiter</span><input value={draft.parsed.recruiter} onChange={(event) => updateParsed("recruiter", event.target.value)} /></label>
-                    <label className="field-label"><span>Date posted</span><input value={draft.parsed.datePosted} onChange={(event) => updateParsed("datePosted", event.target.value)} /></label>
-                    <label className="field-label"><span>Minimum years</span><input type="number" min="0" max="50" value={draft.parsed.minYears ?? ""} onChange={(event) => updateParsed("minYears", event.target.value ? Number(event.target.value) : null)} /></label>
-                    <label className="field-label span-2"><span>Locations, separated by semicolons</span><input value={draft.parsed.locations.join("; ")} onChange={(event) => updateParsed("locations", event.target.value.split(";").map((value) => value.trim()).filter(Boolean))} /></label>
-                    <label className="field-label span-2"><span>Skills, separated by commas</span><textarea rows={3} value={draft.parsed.skills.join(", ")} onChange={(event) => updateParsed("skills", event.target.value.split(",").map((value) => value.trim()).filter(Boolean))} /></label>
-                  </div>
-
-                  {draft.duplicateCheck.comparisons.length ? (
-                    <div className="similar-section">
-                      <div className="section-heading"><div><span className="eyebrow">Portfolio comparison</span><h3>Related reqs already in your tracker</h3></div></div>
-                      <div className="mini-comparison-list">
-                        {draft.duplicateCheck.comparisons.slice(0, 3).map((comparison) => {
-                          const target = jobById.get(comparison.targetJobId);
-                          if (!target) return null;
-                          return (
-                            <button key={target.id} onClick={() => { resetModal(); setSelectedJobId(target.id); }}>
-                              <span className={`mini-score ${scoreClass(comparison.score)}`}>{comparison.score}%</span>
-                              <span><strong>{target.title}</strong><small>{comparisonLabel(comparison.type)} - {comparison.sharedSkills.length} shared skills</small></span>
-                              <ChevronRight size={17} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {modalStep === "decision" && draft ? (
-                <div className="decision-step">
-                  <div className="decision-intro">
-                    <span className="eyebrow">{draft.parsed.jobId || "New req"}</span>
-                    <h3>{draft.parsed.title}</h3>
-                    <p>Choose the status that best reflects what you plan to do next.</p>
-                  </div>
-                  <div className="status-card-grid">
-                    {STATUS_OPTIONS.map((status) => (
-                      <button
-                        key={status}
-                        className={`status-choice ${draft.status === status ? "selected" : ""} ${statusClass(status)}`}
-                        onClick={() => setDraft({ ...draft, status })}
-                      >
-                        <span className="status-choice-dot" />
-                        <strong>{STATUS_META[status].label}</strong>
-                        <small>{STATUS_META[status].description}</small>
-                      </button>
-                    ))}
-                  </div>
-                  <label className="field-label"><span>Decision reason (optional)</span><input value={draft.decisionReason} onChange={(event) => setDraft({ ...draft, decisionReason: event.target.value })} placeholder="Example: Strong skills match" /></label>
-                  <label className="field-label"><span>Personal notes (optional)</span><textarea rows={5} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Contacts, questions, next actions, or application notes..." /></label>
-                </div>
-              ) : null}
-            </div>
-
-            <footer className="modal-footer">
-              {modalStep === "source" ? (
-                <>
-                  <button className="secondary-button" onClick={resetModal} disabled={busy}>Cancel</button>
-                  <button className="primary-button" onClick={analyzeSource} disabled={busy || (!selectedFile && pastedText.trim().length < 40)}>
-                    {busy ? <span className="spinner" /> : <Sparkles size={17} />}
-                    {busy ? "Analyzing..." : "Analyze job req"}
-                  </button>
-                </>
-              ) : null}
-              {modalStep === "review" ? (
-                <>
-                  <button className="secondary-button" onClick={() => { setModalStep("source"); setModalError(""); }}>Back</button>
-                  <button className="primary-button" onClick={moveToDecision} disabled={Boolean(draft?.duplicateCheck.exactMatch)}>Continue <ArrowRight size={17} /></button>
-                </>
-              ) : null}
-              {modalStep === "decision" ? (
-                <>
-                  <button className="secondary-button" onClick={() => { setModalStep("review"); setModalError(""); }}>Back</button>
-                  <button className="primary-button" onClick={saveDraft}><Save size={17} /> Save job req</button>
-                </>
-              ) : null}
-            </footer>
-          </section>
-        </div>
-      ) : null}
-
-      {selectedJob ? (
-        <>
-          <button className="drawer-backdrop" onClick={() => setSelectedJobId(null)} aria-label="Close requisition details" />
-          <aside className="detail-drawer" aria-label="Requisition details">
-            <header className="drawer-header">
-              <div>
-                <span className="eyebrow">{selectedJob.jobId || "No Job ID"}{selectedJob.isDemo ? " - demo" : ""}</span>
-                <h2>{selectedJob.title}</h2>
-              </div>
-              <button className="icon-button" onClick={() => setSelectedJobId(null)} aria-label="Close"><X size={20} /></button>
-            </header>
-
-            <div className="drawer-body">
-              <section className="drawer-decision-card">
-                <label className="field-label"><span>Your decision</span>
-                  <select className={`status-select large ${statusClass(selectedJob.status)}`} value={selectedJob.status} onChange={(event) => changeJobStatus(selectedJob.id, event.target.value as JobStatus)}>
-                    {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{STATUS_META[status].label}</option>)}
-                  </select>
-                </label>
-                <label className="field-label"><span>Decision reason</span><input value={selectedJob.decisionReason} onChange={(event) => updateJob(selectedJob.id, { decisionReason: event.target.value })} placeholder="Why are you pursuing or passing?" /></label>
-              </section>
-
-              <section className="drawer-link-card">
-                <label className="field-label"><span>Job requisition URL (optional)</span><input type="url" value={selectedJob.jobUrl} onChange={(event) => updateJob(selectedJob.id, { jobUrl: event.target.value })} placeholder="Paste the direct link to this requisition" /></label>
-                <div className="drawer-link-actions">
-                  {selectedJob.jobUrl ? <button className="secondary-button" onClick={() => openJobLink(selectedJob)}><ExternalLink size={16} /> Open job req</button> : <span>Add a link to open this posting directly from the dashboard.</span>}
-                </div>
-              </section>
-
-              <section className="detail-section">
-                <h3>Req details</h3>
-                <dl className="detail-grid">
-                  <div><dt>Category</dt><dd>{selectedJob.category || "Not specified"}</dd></div>
-                  <div><dt>Team</dt><dd>{selectedJob.team || "Not specified"}</dd></div>
-                  <div><dt>Hiring manager</dt><dd>{selectedJob.hiringManager || "Not specified"}</dd></div>
-                  <div><dt>Recruiter</dt><dd>{selectedJob.recruiter || "Not specified"}</dd></div>
-                  <div><dt>Location</dt><dd>{selectedJob.locations.length ? selectedJob.locations.join("; ") : "Not specified"}</dd></div>
-                  <div><dt>Seniority</dt><dd>{selectedJob.seniority || "Not specified"}</dd></div>
-                  <div><dt>Date posted</dt><dd>{selectedJob.datePosted || "Not specified"}</dd></div>
-                  <div><dt>Experience</dt><dd>{selectedJob.minYears === null ? "Not specified" : `${selectedJob.minYears}+ years`}</dd></div>
-                  <div><dt>Source</dt><dd>{selectedJob.sourceFileName || "Pasted text"}</dd></div>
-                  <div><dt>Added</dt><dd>{formatDate(selectedJob.createdAt)}</dd></div>
-                </dl>
-              </section>
-
-              <section className="detail-section">
-                <h3>Skills</h3>
-                {selectedJob.skills.length ? <div className="tag-list">{selectedJob.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div> : <p className="muted-copy">No skills were detected.</p>}
-              </section>
-
-              {selectedJob.responsibilities.length ? (
-                <section className="detail-section"><h3>Responsibilities</h3><ul className="detail-list">{selectedJob.responsibilities.map((item) => <li key={item}>{item}</li>)}</ul></section>
-              ) : null}
-
-              {selectedJob.qualifications.length ? (
-                <section className="detail-section"><h3>Qualifications</h3><ul className="detail-list">{selectedJob.qualifications.map((item) => <li key={item}>{item}</li>)}</ul></section>
-              ) : null}
-
-              <section className="detail-section">
-                <label className="field-label"><span>Personal notes</span><textarea rows={7} value={selectedJob.notes} onChange={(event) => updateJob(selectedJob.id, { notes: event.target.value })} placeholder="Contacts, next steps, interview preparation, or application notes..." /></label>
-              </section>
-
-              <section className="browser-data-note"><Database size={17} /><span>This record is stored in localStorage for this browser profile.</span></section>
-            </div>
-
-            <footer className="drawer-footer">
-              <button className="danger-button" onClick={() => deleteJob(selectedJob)}><Trash2 size={16} /> Delete req</button>
-              <button className="primary-button" onClick={() => { setSelectedJobId(null); showToast("Changes saved", "ReqRadar saves local changes automatically."); }}><CheckCircle2 size={16} /> Done</button>
-            </footer>
-          </aside>
-        </>
-      ) : null}
-
-      <div className="toast-region" aria-live="polite">
-        {toasts.map((toast) => (
-          <div className={`toast ${toast.kind}`} key={toast.id}>
-            {toast.kind === "error" ? <AlertTriangle size={18} /> : toast.kind === "info" ? <Info size={18} /> : <CheckCircle2 size={18} />}
-            <div><strong>{toast.title}</strong><span>{toast.message}</span></div>
-            <button onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} aria-label="Dismiss"><X size={16} /></button>
-          </div>
-        ))}
+    {uploadOpen && <div className="modal-layer" onMouseDown={(event) => event.currentTarget === event.target && !busy && setUploadOpen(false)}><section className="modal wide">
+      <header><div><span className="eyebrow">Faster intake</span><h2>Upload multiple job requisitions</h2><p>Select many PDF or TXT files. Each file is parsed independently and exact duplicates are skipped.</p></div><button className="icon-btn" onClick={() => setUploadOpen(false)}><X /></button></header>
+      <div className="modal-body">
+        <div className={`drop-zone ${dragActive ? "active" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onDrop={handleDrop} onClick={() => fileRef.current?.click()}><Upload /><strong>Drop multiple PDF files here</strong><span>or tap to choose files</span><input ref={fileRef} type="file" accept=".pdf,.txt" multiple hidden onChange={(event) => event.target.files && chooseFiles(event.target.files)} /></div>
+        {selectedFiles.length > 0 && <div className="selected-files"><div><strong>{selectedFiles.length} files selected</strong><button onClick={() => setSelectedFiles([])}>Clear</button></div>{selectedFiles.slice(0, 12).map((file) => <span key={`${file.name}-${file.size}`}><FileText /> {file.name}<button onClick={() => setSelectedFiles((current) => current.filter((item) => item !== file))}><X /></button></span>)}{selectedFiles.length > 12 && <small>+ {selectedFiles.length - 12} more files</small>}</div>}
+        {!selectedFiles.length && <label className="field"><span>Or paste one job description</span><textarea rows={7} value={pastedText} onChange={(event) => setPastedText(event.target.value)} placeholder="Paste a complete posting here..." /></label>}
+        {batchResults.length > 0 && <div className="batch-results"><div className="batch-summary"><strong>{batchResults.filter((item) => item.status === "ADDED").length} added</strong><span>{batchResults.filter((item) => item.status === "DUPLICATE").length} duplicates</span><span>{batchResults.filter((item) => item.status === "ERROR").length} errors</span></div>{batchResults.map((item, index) => <div key={`${item.fileName}-${index}`} className={`batch-row batch-${item.status.toLowerCase()}`}>{item.status === "ADDED" ? <CheckCircle2 /> : <AlertTriangle />}<div><strong>{item.title}</strong><span>{item.fileName} · {item.detail}</span></div></div>)}</div>}
       </div>
-    </div>
-  );
+      <footer><button className="secondary" onClick={() => setUploadOpen(false)}>{batchResults.length ? "Done" : "Cancel"}</button><button className="primary" disabled={busy || (!selectedFiles.length && pastedText.trim().length < 40)} onClick={processBatch}>{busy ? <span className="spinner" /> : <Sparkles />}{busy ? `Processing ${selectedFiles.length || 1}...` : `Analyze & add ${selectedFiles.length || 1}`}</button></footer>
+    </section></div>}
+
+    {syncOpen && <div className="modal-layer" onMouseDown={(event) => event.currentTarget === event.target && setSyncOpen(false)}><section className="modal"><header><div><span className="eyebrow">Manual device sync</span><h2>Move your full workspace</h2><p>Backups include requisitions, profile, ranking overrides, networking, links, and filters.</p></div><button className="icon-btn" onClick={() => setSyncOpen(false)}><X /></button></header><div className="modal-body sync-grid"><button className="sync-card" onClick={exportBackup}><Download /><strong>Download backup</strong><span>{jobs.length} requisitions + profile</span></button><button className="sync-card" onClick={() => syncRef.current?.click()}><Upload /><strong>Upload backup</strong><span>Merge or replace this browser</span></button><input ref={syncRef} type="file" accept="application/json,.json" hidden onChange={importBackup} />{syncError && <div className="alert error"><AlertTriangle /> {syncError}</div>}{syncPreview && <div className="sync-preview"><h3>Import preview</h3><div><span>{syncPreview.newCount}<small>new</small></span><span>{syncPreview.updatedCount}<small>updated</small></span><span>{syncPreview.unchangedCount}<small>unchanged</small></span><span>{syncPreview.conflictCount}<small>conflicts</small></span></div><label><input type="radio" checked={syncMode === "merge"} onChange={() => setSyncMode("merge")} /> Merge with this device</label><label><input type="radio" checked={syncMode === "replace"} onChange={() => setSyncMode("replace")} /> Replace this device</label></div>}</div><footer><button className="secondary" onClick={() => setSyncOpen(false)}>Close</button>{pendingBackup && <button className="primary" onClick={applySync}><Save /> Apply import</button>}</footer></section></div>}
+
+    {settingsOpen && <div className="modal-layer" onMouseDown={(event) => event.currentTarget === event.target && setSettingsOpen(false)}><section className="modal small"><header><div><span className="eyebrow">Shortcut</span><h2>Recruiting page</h2><p>Save an easy-access link to your main recruiting or internal careers page.</p></div><button className="icon-btn" onClick={() => setSettingsOpen(false)}><X /></button></header><div className="modal-body"><label className="field"><span>Recruiting page URL</span><input value={portalDraft} onChange={(event) => setPortalDraft(event.target.value)} placeholder="https://..." /></label></div><footer><button className="secondary" onClick={() => setSettingsOpen(false)}>Cancel</button><button className="primary" onClick={savePortal}><Save /> Save link</button></footer></section></div>}
+
+    {selectedJob && selectedAssessment && <><button className="drawer-backdrop" onClick={() => setSelectedJobId(null)} /><aside className="drawer">
+      <header><div><span className="eyebrow">{selectedJob.jobId || "No Job ID"}</span><h2>{selectedJob.title}</h2><div className="drawer-head-badges"><span className={`recommendation ${recommendationClass(selectedAssessment.recommendation)}`}>{recommendationLabel(selectedAssessment.recommendation)}</span><span className="rank-score">Rank {selectedAssessment.finalScore}</span></div></div><button className="icon-btn" onClick={() => setSelectedJobId(null)}><X /></button></header>
+      <div className="drawer-body">
+        <section className="assessment-hero"><div><Score value={selectedAssessment.skillsScore} label="Skills Fit" /><Score value={selectedAssessment.interestScore} label="Interest Fit" /><Score value={selectedAssessment.freshnessScore} label="Freshness" /></div><p><strong>Next:</strong> {selectedAssessment.nextAction}</p>{selectedAssessment.reasons.slice(0, 4).map((reason) => <span key={reason}>• {reason}</span>)}</section>
+        <section className="drawer-section two-col"><label className="field"><span>Status</span><select value={selectedJob.status} onChange={(event) => updateJob(selectedJob.id, { status: event.target.value as JobStatus })}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}</select></label><label className="field"><span>Interest Fit override</span><select value={selectedJob.interestOverride} onChange={(event) => updateJob(selectedJob.id, { interestOverride: event.target.value as InterestLevel })}>{INTEREST_OPTIONS.map((value) => <option key={value} value={value}>{value === "AUTO" ? "Automatic" : value.charAt(0) + value.slice(1).toLowerCase()}</option>)}</select></label><label className="field"><span>Recommendation override</span><select value={selectedJob.recommendationOverride} onChange={(event) => updateJob(selectedJob.id, { recommendationOverride: event.target.value as RecommendationOverride })}>{RECOMMENDATION_OPTIONS.map((value) => <option key={value} value={value}>{value === "AUTO" ? "Automatic" : recommendationLabel(value)}</option>)}</select></label><label className="field"><span>Manual priority</span><select value={selectedJob.manualPriority} onChange={(event) => updateJob(selectedJob.id, { manualPriority: event.target.value as ManualPriority })}>{PRIORITY_OPTIONS.map((value) => <option key={value} value={value}>{value.charAt(0) + value.slice(1).toLowerCase()}</option>)}</select></label><label className="field"><span>Rank adjustment (-20 to +20)</span><input type="number" min={-20} max={20} value={selectedJob.manualAdjustment} onChange={(event) => updateJob(selectedJob.id, { manualAdjustment: Math.max(-20, Math.min(20, Number(event.target.value) || 0)) })} /></label><label className="check-field"><input type="checkbox" checked={selectedJob.pinned} onChange={(event) => updateJob(selectedJob.id, { pinned: event.target.checked })} /> Pin to top</label></section>
+        <section className="drawer-section"><div className="section-head"><div><h3>Skills assessment</h3><p>Green = matched, amber = partial, red = missing. Critical gaps can force Do not pursue.</p></div><span className="count-badge">{selectedAssessment.skills.length}</span></div>{selectedAssessment.skills.length ? <div className="skills-assessment">{selectedAssessment.skills.map((skill) => <div key={skill.skill} className={`skill-row ${skillClass(skill.status)}`}><div><strong>{skill.skill}</strong><span>{skill.reason}</span></div><select value={selectedJob.skillOverrides[skill.skill] || skill.status} onChange={(event) => updateJob(selectedJob.id, { skillOverrides: { ...selectedJob.skillOverrides, [skill.skill]: event.target.value as SkillMatchStatus } })}>{SKILL_OPTIONS.map((value) => <option key={value} value={value}>{value.replace(/_/g, " ").toLowerCase()}</option>)}</select></div>)}</div> : <p className="muted">No skills were detected in this posting.</p>}</section>
+        <section className="drawer-section age-card"><div><h3>Job age</h3><p>{selectedAssessment.ageLabel}. Jobs older than 90 days default to Do not pursue.</p></div><label className="check-field"><input type="checkbox" checked={selectedJob.ageOverride} onChange={(event) => updateJob(selectedJob.id, { ageOverride: event.target.checked })} /> Ignore age rule for this req</label></section>
+        <section className="drawer-section"><div className="section-head"><div><h3>Networking</h3><p>Track the relationship-building step separately from application status.</p></div><Network /></div><div className="two-col"><label className="field"><span>Stage</span><select value={selectedJob.networkingStage} onChange={(event) => updateJob(selectedJob.id, { networkingStage: event.target.value as NetworkingStage })}>{NETWORKING_OPTIONS.map((stage) => <option key={stage} value={stage}>{networkingStageLabel(stage)}</option>)}</select></label><label className="field"><span>Contact</span><input value={selectedJob.networkingContact} onChange={(event) => updateJob(selectedJob.id, { networkingContact: event.target.value })} placeholder="Name or relationship" /></label></div><label className="field"><span>Networking notes</span><textarea rows={4} value={selectedJob.networkingNotes} onChange={(event) => updateJob(selectedJob.id, { networkingNotes: event.target.value })} placeholder="Message, follow-up, referral, next action..." /></label></section>
+        <section className="drawer-section two-col"><label className="field"><span>Job requisition URL</span><input value={selectedJob.jobUrl} onChange={(event) => updateJob(selectedJob.id, { jobUrl: event.target.value })} placeholder="https://..." /></label><label className="field"><span>Date posted</span><input value={selectedJob.datePosted} onChange={(event) => updateJob(selectedJob.id, { datePosted: event.target.value })} /></label></section>
+        {selectedJob.jobUrl && <button className="secondary full" onClick={() => { try { window.open(normalizeHttpUrl(selectedJob.jobUrl), "_blank", "noopener,noreferrer"); } catch { toast("Invalid URL", "Update the job requisition URL.", "error"); } }}><ExternalLink /> Open job requisition</button>}
+        <section className="drawer-section"><h3>Req details</h3><dl className="detail-grid"><div><dt>Category</dt><dd>{selectedJob.category || "Not specified"}</dd></div><div><dt>Team</dt><dd>{selectedJob.team || "Not specified"}</dd></div><div><dt>Hiring manager</dt><dd>{selectedJob.hiringManager || "Not specified"}</dd></div><div><dt>Recruiter</dt><dd>{selectedJob.recruiter || "Not specified"}</dd></div><div><dt>Location</dt><dd>{selectedJob.locations.join("; ") || "Not specified"}</dd></div><div><dt>Added</dt><dd>{formatDate(selectedJob.createdAt)}</dd></div></dl></section>
+        <section className="drawer-section"><label className="field"><span>Personal notes</span><textarea rows={6} value={selectedJob.notes} onChange={(event) => updateJob(selectedJob.id, { notes: event.target.value })} /></label></section>
+        <div className="local-note"><Database /> Stored locally in this browser. Use Sync to move it to another device.</div>
+      </div>
+      <footer><button className="danger" onClick={deleteSelected}><Trash2 /> Delete</button><button className="primary" onClick={() => setSelectedJobId(null)}><CheckCircle2 /> Done</button></footer>
+    </aside></>}
+
+    <div className="toasts">{toasts.map((item) => <div className={`toast ${item.kind}`} key={item.id}>{item.kind === "error" ? <AlertTriangle /> : <CheckCircle2 />}<div><strong>{item.title}</strong><span>{item.message}</span></div><button onClick={() => setToasts((current) => current.filter((toastItem) => toastItem.id !== item.id))}><X /></button></div>)}</div>
+  </div>;
 }
-
-export default App;
