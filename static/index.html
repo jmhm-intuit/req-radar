@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#0b1f33">
+  <title>ReqRadar - Recruiting requisition tracker</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <button class="mobile-close" id="mobile-close" aria-label="Close navigation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </button>
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <div>
+          <div class="brand-name">ReqRadar</div>
+          <div class="brand-subtitle">Recruiting workspace</div>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-item is-active" data-view="overview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9zm0 7h6v-4H4v4zm10 0h6v-9h-6v9zm0-16v4h6V4h-6z"></path></svg>
+          <span>Overview</span>
+        </button>
+        <button class="nav-item" data-view="jobs">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5V3h6v2m-9 0h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zm-2 6h16M9 9v4m6-4v4"></path></svg>
+          <span>Job reqs</span>
+          <span class="nav-count" id="nav-job-count">0</span>
+        </button>
+        <button class="nav-item" data-view="comparisons">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h11m-4-4l4 4-4 4M16 17H5m4 4l-4-4 4-4"></path></svg>
+          <span>Comparisons</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-card-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V7l8-4zM9 12l2 2 4-5"></path></svg>
+        </div>
+        <div>
+          <strong>Local workspace</strong>
+          <p>Your reqs and source files stay on this computer.</p>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="text-button" id="load-demo-button">Load demo portfolio</button>
+        <button class="text-button danger-text is-hidden" id="clear-demo-button">Remove demo data</button>
+      </div>
+    </aside>
+
+    <div class="page-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Open navigation">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+          </button>
+          <div>
+            <h1 id="page-title">Recruiting overview</h1>
+            <p id="page-subtitle">Track decisions, catch duplicates, and compare open requisitions.</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <label class="global-search" for="global-search-input">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+            <input id="global-search-input" type="search" placeholder="Search reqs" autocomplete="off">
+            <kbd>/</kbd>
+          </label>
+          <button class="primary-button" id="add-job-button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            Add job req
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="content">
+        <section class="view is-active" id="overview-view" data-view-panel="overview">
+          <div class="stats-grid" id="stats-grid" aria-live="polite"></div>
+          <div class="content-grid">
+            <section class="panel panel-wide">
+              <div class="panel-header">
+                <div>
+                  <h2>Open requisitions</h2>
+                  <p>Update your decision directly from the list.</p>
+                </div>
+                <button class="secondary-button compact" data-go-view="jobs">View all</button>
+              </div>
+              <div id="overview-table-wrap"></div>
+            </section>
+            <aside class="panel insight-panel" id="insight-panel"></aside>
+          </div>
+        </section>
+
+        <section class="view" id="jobs-view" data-view-panel="jobs">
+          <section class="panel">
+            <div class="panel-header jobs-toolbar-header">
+              <div>
+                <h2>Job requisitions</h2>
+                <p>Filter, compare, and update your application decision.</p>
+              </div>
+              <div class="toolbar">
+                <label class="select-field compact-select">
+                  <span class="sr-only">Filter by status</span>
+                  <select id="status-filter">
+                    <option value="ALL">All statuses</option>
+                    <option value="NEW">New</option>
+                    <option value="PURSUING">Pursuing</option>
+                    <option value="MAYBE">Maybe</option>
+                    <option value="NOT_PURSUING">Not pursuing</option>
+                    <option value="APPLIED">Applied</option>
+                  </select>
+                </label>
+                <button class="secondary-button compact" id="jobs-add-button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  Add req
+                </button>
+              </div>
+            </div>
+            <div id="jobs-table-wrap"></div>
+          </section>
+        </section>
+
+        <section class="view" id="comparisons-view" data-view-panel="comparisons">
+          <div id="comparisons-content"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop is-hidden" id="job-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <header class="modal-header">
+        <div>
+          <span class="eyebrow">New requisition</span>
+          <h2 id="modal-title">Add a job req</h2>
+        </div>
+        <button class="icon-button" id="close-modal-button" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        </button>
+      </header>
+      <div class="stepper" id="modal-stepper" aria-label="Upload progress">
+        <div class="step is-active" data-step="1"><span>1</span><div><strong>Upload</strong><small>Source file</small></div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="2"><span>2</span><div><strong>Review</strong><small>Details and duplicates</small></div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="3"><span>3</span><div><strong>Decision</strong><small>Track your intent</small></div></div>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <footer class="modal-footer" id="modal-footer"></footer>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop is-hidden" id="drawer-backdrop"></div>
+  <aside class="detail-drawer" id="detail-drawer" aria-label="Requisition details" aria-hidden="true"></aside>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
