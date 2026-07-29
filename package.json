@@ -1,9 +1,9 @@
 {
   "name": "req-radar",
   "private": true,
-  "version": "1.7.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "ReqRadar v1.7: bulk job requisition upload, resume-based skills fit, interest fit, job-age rules, networking stages, manual ranking, device sync, and GitHub Pages deployment.",
+  "description": "ReqRadar v2.0: evidence-backed career portfolio intelligence for organizing job requisitions, comparing capability and interest fit, discovering role families, and prioritizing career experiments.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

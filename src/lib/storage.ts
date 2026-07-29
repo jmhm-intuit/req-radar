@@ -1,6 +1,6 @@
 import type {
+  ActionStage,
   AppSettings,
-  InterestLevel,
   JobReq,
   JobStatus,
   ManualPriority,
@@ -12,34 +12,27 @@ import type {
   SyncPreview,
   UserProfile
 } from "../types";
+import { createDefaultProfile, normalizeLegacyProfile } from "./profile";
 
 const JOBS_STORAGE_KEY = "req-radar:jobs:v1";
 const SETTINGS_STORAGE_KEY = "req-radar:settings:v1";
 const PROFILE_STORAGE_KEY = "req-radar:profile:v1";
 
-const VALID_STATUSES = new Set<JobStatus>(["NEW", "PURSUING", "MAYBE", "NOT_PURSUING", "APPLIED"]);
+const VALID_STATUSES = new Set<JobStatus>(["NEW", "EXPLORING", "PURSUING", "MAYBE", "APPLIED", "NOT_PURSUING", "CLOSED"]);
 const VALID_NETWORKING = new Set<NetworkingStage>([
   "NOT_STARTED", "CONTACT_IDENTIFIED", "MESSAGE_PLANNED", "CONTACTED", "RESPONSE_RECEIVED",
-  "CONVERSATION_SCHEDULED", "CONVERSATION_COMPLETED", "REFERRAL_REQUESTED", "REFERRAL_RECEIVED", "NOT_NEEDED"
+  "CONVERSATION_SCHEDULED", "CONVERSATION_COMPLETED", "FOLLOW_UP", "REFERRAL_REQUESTED", "REFERRAL_RECEIVED", "NOT_NEEDED"
 ]);
-const VALID_INTEREST = new Set<InterestLevel>(["AUTO", "HIGH", "MEDIUM", "LOW", "NONE"]);
+const VALID_ACTIONS = new Set<ActionStage>(["REVIEW", "VALIDATE_ROLE", "IDENTIFY_CONTACT", "NETWORK", "PREPARE_APPLICATION", "APPLY", "FOLLOW_UP", "COMPLETE"]);
 const VALID_PRIORITY = new Set<ManualPriority>(["HIGH", "NORMAL", "LOW", "ARCHIVE"]);
-const VALID_RECOMMENDATION = new Set<RecommendationOverride>(["AUTO", "PURSUE", "CONSIDER", "LOW_PRIORITY", "DO_NOT_PURSUE"]);
-const VALID_SKILL_STATUS = new Set<SkillMatchStatus>(["MATCH", "PARTIAL", "NO_MATCH", "CRITICAL_GAP", "NOT_RELEVANT"]);
+const VALID_RECOMMENDATION = new Set<RecommendationOverride>(["AUTO", "PURSUE_NOW", "EXPLORE_NETWORKING", "STRETCH", "LOW_PRIORITY", "DO_NOT_PURSUE"]);
+const VALID_SKILL_STATUS = new Set<SkillMatchStatus>(["PROVEN", "TRANSFERABLE", "DEVELOPMENT_GAP", "CRITICAL_BLOCKER", "UNKNOWN", "NOT_RELEVANT"]);
 
 export const DEFAULT_SETTINGS: AppSettings = {
   recruitingPortalUrl: "",
   lastExportAt: "",
-  hiddenStatuses: [],
-  updatedAt: ""
-};
-
-export const DEFAULT_PROFILE: UserProfile = {
-  resumeFileName: "",
-  resumeText: "",
-  skills: [],
-  interests: ["Artificial intelligence", "Transformation", "Strategy", "People leadership", "Executive influence"],
-  avoid: ["Repetitive operations"],
+  hiddenStatuses: ["NOT_PURSUING", "CLOSED"],
+  preferredView: "PORTFOLIO",
   updatedAt: ""
 };
 
@@ -59,20 +52,68 @@ function numberValue(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function normalizeStatus(value: unknown): JobStatus {
+  if (typeof value === "string" && VALID_STATUSES.has(value as JobStatus)) return value as JobStatus;
+  return "NEW";
+}
+
+function normalizeNetworking(value: unknown): NetworkingStage {
+  if (value === "CONVERSATION_COMPLETE") return "CONVERSATION_COMPLETED";
+  if (typeof value === "string" && VALID_NETWORKING.has(value as NetworkingStage)) return value as NetworkingStage;
+  return "NOT_STARTED";
+}
+
+function normalizeAction(value: unknown, status: JobStatus): ActionStage {
+  if (typeof value === "string" && VALID_ACTIONS.has(value as ActionStage)) return value as ActionStage;
+  if (status === "APPLIED") return "FOLLOW_UP";
+  if (status === "PURSUING") return "PREPARE_APPLICATION";
+  if (status === "NOT_PURSUING" || status === "CLOSED") return "COMPLETE";
+  return "REVIEW";
+}
+
+function normalizeRecommendation(value: unknown): RecommendationOverride {
+  if (typeof value === "string" && VALID_RECOMMENDATION.has(value as RecommendationOverride)) return value as RecommendationOverride;
+  const legacy: Record<string, RecommendationOverride> = {
+    PURSUE: "PURSUE_NOW",
+    CONSIDER: "EXPLORE_NETWORKING",
+    LOW_PRIORITY: "LOW_PRIORITY",
+    DO_NOT_PURSUE: "DO_NOT_PURSUE"
+  };
+  return typeof value === "string" ? legacy[value] || "AUTO" : "AUTO";
+}
+
+function normalizeSkillStatus(value: unknown): SkillMatchStatus | null {
+  if (typeof value === "string" && VALID_SKILL_STATUS.has(value as SkillMatchStatus)) return value as SkillMatchStatus;
+  const legacy: Record<string, SkillMatchStatus> = {
+    MATCH: "PROVEN",
+    PARTIAL: "TRANSFERABLE",
+    NO_MATCH: "DEVELOPMENT_GAP",
+    CRITICAL_GAP: "CRITICAL_BLOCKER",
+    NOT_RELEVANT: "NOT_RELEVANT"
+  };
+  return typeof value === "string" ? legacy[value] || null : null;
+}
+
 function normalizeOverrides(value: unknown): Record<string, SkillMatchStatus> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .filter((entry): entry is [string, SkillMatchStatus] => typeof entry[1] === "string" && VALID_SKILL_STATUS.has(entry[1] as SkillMatchStatus))
+      .map(([key, status]) => [key, normalizeSkillStatus(status)] as const)
+      .filter((entry): entry is [string, SkillMatchStatus] => Boolean(entry[1]))
   );
 }
 
 export function normalizeJobReq(value: unknown): JobReq | null {
   if (!value || typeof value !== "object") return null;
-  const job = value as Partial<JobReq>;
+  const job = value as Record<string, unknown>;
   if (typeof job.id !== "string" || typeof job.title !== "string" || typeof job.descriptionText !== "string") return null;
-  const status = typeof job.status === "string" && VALID_STATUSES.has(job.status as JobStatus) ? job.status as JobStatus : "NEW";
+  const status = normalizeStatus(job.status);
   const now = new Date().toISOString();
+  const legacyInterest = stringValue(job.interestOverride);
+  const interestAdjustment = typeof job.interestAdjustment === "number"
+    ? Math.max(-20, Math.min(20, job.interestAdjustment))
+    : legacyInterest === "HIGH" ? 15 : legacyInterest === "MEDIUM" ? 5 : legacyInterest === "LOW" ? -10 : legacyInterest === "NONE" ? -20 : 0;
+
   return {
     id: job.id,
     jobId: stringValue(job.jobId),
@@ -96,16 +137,23 @@ export function normalizeJobReq(value: unknown): JobReq | null {
     jobUrl: stringValue(job.jobUrl),
     sourceFileName: stringValue(job.sourceFileName),
     sourceHash: stringValue(job.sourceHash),
-    networkingStage: typeof job.networkingStage === "string" && VALID_NETWORKING.has(job.networkingStage as NetworkingStage) ? job.networkingStage as NetworkingStage : "NOT_STARTED",
+    networkingStage: normalizeNetworking(job.networkingStage),
     networkingContact: stringValue(job.networkingContact),
     networkingNotes: stringValue(job.networkingNotes),
-    interestOverride: typeof job.interestOverride === "string" && VALID_INTEREST.has(job.interestOverride as InterestLevel) ? job.interestOverride as InterestLevel : "AUTO",
+    networkingHypothesis: stringValue(job.networkingHypothesis),
+    networkingLearnings: stringValue(job.networkingLearnings),
+    networkingQuestions: stringArray(job.networkingQuestions),
+    actionStage: normalizeAction(job.actionStage, status),
     skillOverrides: normalizeOverrides(job.skillOverrides),
     ageOverride: booleanValue(job.ageOverride),
+    verifiedActiveAt: stringValue(job.verifiedActiveAt),
     manualAdjustment: Math.max(-20, Math.min(20, numberValue(job.manualAdjustment))),
     manualPriority: typeof job.manualPriority === "string" && VALID_PRIORITY.has(job.manualPriority as ManualPriority) ? job.manualPriority as ManualPriority : "NORMAL",
     pinned: booleanValue(job.pinned),
-    recommendationOverride: typeof job.recommendationOverride === "string" && VALID_RECOMMENDATION.has(job.recommendationOverride as RecommendationOverride) ? job.recommendationOverride as RecommendationOverride : "AUTO",
+    recommendationOverride: normalizeRecommendation(job.recommendationOverride),
+    interestAdjustment,
+    groupOverride: stringValue(job.groupOverride),
+    fitNotes: stringValue(job.fitNotes),
     createdAt: stringValue(job.createdAt) || now,
     updatedAt: stringValue(job.updatedAt) || stringValue(job.createdAt) || now,
     ...(job.isDemo ? { isDemo: true } : {})
@@ -114,25 +162,13 @@ export function normalizeJobReq(value: unknown): JobReq | null {
 
 function normalizeSettings(value: unknown): AppSettings {
   if (!value || typeof value !== "object") return { ...DEFAULT_SETTINGS };
-  const settings = value as Partial<AppSettings>;
+  const settings = value as Record<string, unknown>;
   return {
     recruitingPortalUrl: stringValue(settings.recruitingPortalUrl),
     lastExportAt: stringValue(settings.lastExportAt),
     hiddenStatuses: stringArray(settings.hiddenStatuses).filter((status): status is JobStatus => VALID_STATUSES.has(status as JobStatus)),
+    preferredView: settings.preferredView === "ROLES" ? "ROLES" : "PORTFOLIO",
     updatedAt: stringValue(settings.updatedAt)
-  };
-}
-
-function normalizeProfile(value: unknown): UserProfile {
-  if (!value || typeof value !== "object") return { ...DEFAULT_PROFILE };
-  const profile = value as Partial<UserProfile>;
-  return {
-    resumeFileName: stringValue(profile.resumeFileName),
-    resumeText: stringValue(profile.resumeText),
-    skills: stringArray(profile.skills),
-    interests: stringArray(profile.interests).length ? stringArray(profile.interests) : [...DEFAULT_PROFILE.interests],
-    avoid: stringArray(profile.avoid).length ? stringArray(profile.avoid) : [...DEFAULT_PROFILE.avoid],
-    updatedAt: stringValue(profile.updatedAt)
   };
 }
 
@@ -161,7 +197,7 @@ function dedupeJobs(jobs: JobReq[]): JobReq[] {
     const existing = map.get(key);
     if (!existing || timestamp(job.updatedAt) >= timestamp(existing.updatedAt)) map.set(key, job);
   });
-  return [...map.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...map.values()].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 export function loadJobs(): JobReq[] {
@@ -194,9 +230,9 @@ export function saveSettings(settings: AppSettings): void {
 export function loadProfile(): UserProfile {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    return raw ? normalizeProfile(JSON.parse(raw) as unknown) : { ...DEFAULT_PROFILE };
+    return raw ? normalizeLegacyProfile(JSON.parse(raw) as unknown) : createDefaultProfile();
   } catch {
-    return { ...DEFAULT_PROFILE };
+    return createDefaultProfile();
   }
 }
 
@@ -207,7 +243,7 @@ export function saveProfile(profile: UserProfile): void {
 export function buildExportPayload(jobs: JobReq[], settings: AppSettings, profile: UserProfile, exportedAt = new Date().toISOString()): ReqRadarBackup {
   return {
     app: "ReqRadar",
-    schemaVersion: 3,
+    schemaVersion: 4,
     appVersion: __APP_VERSION__,
     exportedAt,
     jobs,
@@ -228,7 +264,7 @@ export function parseBackupFile(content: string): ParsedBackup {
     exportedAt: stringValue(object?.exportedAt),
     jobs,
     settings: normalizeSettings(object?.settings),
-    profile: normalizeProfile(object?.profile)
+    profile: object?.profile ? normalizeLegacyProfile(object.profile) : createDefaultProfile()
   };
 }
 
@@ -238,30 +274,40 @@ export function buildSyncPreview(currentJobs: JobReq[], backup: ParsedBackup): S
     const existing = findExisting(currentJobs, incoming);
     if (!existing) preview.newCount += 1;
     else if (timestamp(incoming.updatedAt) > timestamp(existing.updatedAt)) preview.updatedCount += 1;
-    else if (timestamp(incoming.updatedAt) === timestamp(existing.updatedAt) && JSON.stringify(incoming) !== JSON.stringify(existing)) preview.conflictCount += 1;
-    else preview.unchangedCount += 1;
+    else if (timestamp(incoming.updatedAt) === timestamp(existing.updatedAt)) preview.unchangedCount += 1;
+    else preview.conflictCount += 1;
   });
   return preview;
 }
 
-export function mergeBackup(currentJobs: JobReq[], currentSettings: AppSettings, currentProfile: UserProfile, backup: ParsedBackup): { jobs: JobReq[]; settings: AppSettings; profile: UserProfile; preview: SyncPreview } {
+export function mergeBackup(
+  currentJobs: JobReq[],
+  currentSettings: AppSettings,
+  currentProfile: UserProfile,
+  backup: ParsedBackup,
+  mode: "merge" | "replace"
+): { jobs: JobReq[]; settings: AppSettings; profile: UserProfile } {
+  if (mode === "replace") return { jobs: dedupeJobs(backup.jobs), settings: backup.settings, profile: backup.profile };
   const merged = [...currentJobs];
   backup.jobs.forEach((incoming) => {
-    const existing = findExisting(merged, incoming);
-    if (!existing) merged.push(incoming);
-    else if (timestamp(incoming.updatedAt) > timestamp(existing.updatedAt)) merged.splice(merged.indexOf(existing), 1, incoming);
+    const existingIndex = merged.findIndex((job) => identityKey(job) === identityKey(incoming) || job.id === incoming.id);
+    if (existingIndex < 0) merged.push(incoming);
+    else if (timestamp(incoming.updatedAt) > timestamp(merged[existingIndex].updatedAt)) merged[existingIndex] = incoming;
   });
   const settings = timestamp(backup.settings.updatedAt) > timestamp(currentSettings.updatedAt) ? backup.settings : currentSettings;
   const profile = timestamp(backup.profile.updatedAt) > timestamp(currentProfile.updatedAt) ? backup.profile : currentProfile;
-  return { jobs: dedupeJobs(merged), settings, profile, preview: buildSyncPreview(currentJobs, backup) };
+  return { jobs: dedupeJobs(merged), settings, profile };
 }
 
-export function downloadJson(fileName: string, value: unknown): void {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" });
+export function downloadJson(payload: ReqRadarBackup): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
+  const link = document.createElement("a");
+  const date = payload.exportedAt.slice(0, 10);
+  link.href = url;
+  link.download = `req-radar-v2-backup-${date}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   URL.revokeObjectURL(url);
 }
