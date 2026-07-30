@@ -1,8 +1,15 @@
-# ReqRadar v3.0.0
+# ReqRadar v3.0.1
 
 ReqRadar is a local-first career portfolio and opportunity-discovery application designed for GitHub Pages.
 
 Version 3 introduces **Fit Discovery Studio**: an adaptive, scenario-based experience that helps an applicant imagine the real work behind a job description, connect it to past experience, uncover conditional preferences, and identify what must be validated through networking.
+
+
+## v3.0.1 startup reliability hotfix
+
+Version 3.0.1 fixes the white-screen startup problem seen after the v3.0.0 deployment. The portfolio analysis now runs in short asynchronous batches so the application shell can render immediately, and similar-role comparisons are calculated only when that workspace is opened. PDF.js is loaded only when a PDF is selected.
+
+The hotfix also adds a visible loading screen, guarded browser-storage writes, and a recovery screen that can export raw ReqRadar data if an unexpected runtime or legacy-data error occurs. Existing local jobs, profile data, discovery responses, rankings, and backups remain compatible.
 
 ## Core capabilities
 

@@ -1,7 +1,7 @@
 {
   "name": "req-radar",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.0.1",
   "type": "module",
   "description": "ReqRadar v3.0: evidence-backed career portfolio intelligence for organizing job requisitions, comparing capability and interest fit, discovering role families, and prioritizing career experiments.",
   "scripts": {

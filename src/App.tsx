@@ -42,7 +42,7 @@ import { JobTable, STATUS_OPTIONS } from "./components/JobTable";
 import { PortfolioMap } from "./components/PortfolioMap";
 import {
   assessJob,
-  buildComparisons,
+  buildComparisonsFromAssessments,
   buildRoleGroups,
   portfolioThemes,
   recommendationLabel
@@ -79,6 +79,8 @@ import type {
 type View = "portfolio" | "roles" | "groups" | "discovery" | "profile" | "comparisons";
 type SortMode = "RANK" | "CAPABILITY" | "INTEREST" | "DIRECTION" | "NEWEST" | "AGE" | "TITLE";
 type Toast = { id: number; title: string; message: string; kind: "success" | "error" | "info" };
+type AnalysisError = { jobId: string; title: string; message: string };
+type AnalysisProgress = { done: number; total: number };
 
 const PAGE_SIZE = 25;
 const RECOMMENDATIONS: Array<"ALL" | Recommendation> = ["ALL", "PURSUE_NOW", "EXPLORE_NETWORKING", "STRETCH", "LOW_PRIORITY", "DO_NOT_PURSUE"];
@@ -93,6 +95,14 @@ function Empty({ icon, title, text, action }: { icon: ReactNode; title: string; 
 
 function Stat({ icon, label, value, detail, tone = "" }: { icon: ReactNode; label: string; value: number; detail: string; tone?: string }) {
   return <article className={`stat ${tone}`}><div>{icon}<span>{label}</span></div><strong>{value}</strong><p>{detail}</p></article>;
+}
+
+function AnalysisLoading({ progress }: { progress: AnalysisProgress }) {
+  const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  return <section className="panel analysis-loading" role="status" aria-live="polite">
+    <div className="analysis-orbit"><Target /><i /></div>
+    <div><span className="eyebrow">Preparing your portfolio</span><h2>Analyzing role fit without blocking the page</h2><p>ReqRadar is processing your saved requisitions in small batches. Your data remains in this browser.</p><div className="analysis-progress-track"><span style={{ width: `${percent}%` }} /></div><small>{progress.done} of {progress.total} roles analyzed · {percent}%</small></div>
+  </section>;
 }
 
 function normalizeHttpUrl(value: string): string {
@@ -141,13 +151,101 @@ export default function App() {
   const [syncError, setSyncError] = useState("");
   const [portalDraft, setPortalDraft] = useState(settings.recruitingPortalUrl);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [assessments, setAssessments] = useState<Map<string, JobAssessment>>(() => new Map());
+  const [analysisBusy, setAnalysisBusy] = useState(() => jobs.length > 0);
+  const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress>({ done: 0, total: jobs.length });
+  const [analysisErrors, setAnalysisErrors] = useState<AnalysisError[]>([]);
+  const [storageWarning, setStorageWarning] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const syncRef = useRef<HTMLInputElement | null>(null);
+  const analysisRunRef = useRef(0);
+  const analysisCacheRef = useRef(new Map<string, { jobUpdatedAt: string; profileSignature: string; assessment: JobAssessment }>());
 
-  useEffect(() => saveJobs(jobs), [jobs]);
-  useEffect(() => saveSettings(settings), [settings]);
-  useEffect(() => saveProfile(profile), [profile]);
+  useEffect(() => {
+    const result = saveJobs(jobs);
+    if (!result.ok) setStorageWarning(result.message);
+  }, [jobs]);
+  useEffect(() => {
+    const result = saveSettings(settings);
+    if (!result.ok) setStorageWarning(result.message);
+  }, [settings]);
+  useEffect(() => {
+    const result = saveProfile(profile);
+    if (!result.ok) setStorageWarning(result.message);
+  }, [profile]);
   useEffect(() => setPage(1), [search, sortMode, recommendationFilter, groupFilter, settings.hiddenStatuses]);
+
+  useEffect(() => {
+    const runId = ++analysisRunRef.current;
+    const profileSignature = [
+      profile.updatedAt,
+      profile.resumeText.length,
+      profile.skills.length,
+      profile.discoveryPreferences.length,
+      profile.peakExperiences.length,
+      profile.careerDirections.length
+    ].join("|");
+
+    setAnalysisProgress({ done: 0, total: jobs.length });
+    setAnalysisErrors([]);
+
+    if (!jobs.length) {
+      setAssessments(new Map());
+      setAnalysisBusy(false);
+      return undefined;
+    }
+
+    setAnalysisBusy(true);
+    const nextAssessments = new Map<string, JobAssessment>();
+    const errors: AnalysisError[] = [];
+    let index = 0;
+    let timer = 0;
+
+    const processChunk = () => {
+      if (analysisRunRef.current !== runId) return;
+      const chunkStartedAt = performance.now();
+      let processedInChunk = 0;
+
+      while (index < jobs.length && (processedInChunk === 0 || performance.now() - chunkStartedAt < 14)) {
+        const job = jobs[index];
+        const cached = analysisCacheRef.current.get(job.id);
+        try {
+          const assessment = cached && cached.jobUpdatedAt === job.updatedAt && cached.profileSignature === profileSignature
+            ? cached.assessment
+            : assessJob(job, profile);
+          nextAssessments.set(job.id, assessment);
+          analysisCacheRef.current.set(job.id, { jobUpdatedAt: job.updatedAt, profileSignature, assessment });
+        } catch (error) {
+          errors.push({
+            jobId: job.id,
+            title: job.title,
+            message: error instanceof Error ? error.message : "Unknown analysis error"
+          });
+        }
+        index += 1;
+        processedInChunk += 1;
+      }
+
+      if (analysisRunRef.current !== runId) return;
+      setAnalysisProgress({ done: index, total: jobs.length });
+
+      if (index < jobs.length) {
+        timer = window.setTimeout(processChunk, 0);
+        return;
+      }
+
+      const activeIds = new Set(jobs.map((job) => job.id));
+      [...analysisCacheRef.current.keys()].forEach((id) => {
+        if (!activeIds.has(id)) analysisCacheRef.current.delete(id);
+      });
+      setAssessments(nextAssessments);
+      setAnalysisErrors(errors);
+      setAnalysisBusy(false);
+    };
+
+    timer = window.setTimeout(processChunk, 20);
+    return () => window.clearTimeout(timer);
+  }, [jobs, profile]);
 
   const notify = (title: string, message: string, kind: Toast["kind"] = "info") => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -155,9 +253,11 @@ export default function App() {
     window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 5000);
   };
 
-  const assessments = useMemo(() => new Map(jobs.map((job) => [job.id, assessJob(job, profile)])), [jobs, profile]);
   const groups = useMemo(() => buildRoleGroups(jobs, assessments), [jobs, assessments]);
-  const comparisons = useMemo(() => buildComparisons(jobs), [jobs]);
+  const comparisons = useMemo(
+    () => view === "comparisons" && !analysisBusy ? buildComparisonsFromAssessments(jobs, assessments) : [],
+    [view, jobs, assessments, analysisBusy]
+  );
   const themes = useMemo(() => portfolioThemes(assessments.values()), [assessments]);
   const readiness = useMemo(() => profileReadiness(profile), [profile]);
 
@@ -346,6 +446,7 @@ export default function App() {
   const exploreCount = [...assessments.values()].filter((assessment) => assessment.recommendation === "EXPLORE_NETWORKING").length;
   const stretchCount = [...assessments.values()].filter((assessment) => assessment.recommendation === "STRETCH").length;
   const staleCount = [...assessments.values()].filter((assessment) => assessment.ageDays !== null && assessment.ageDays > 90 && assessment.viabilityScore === 0).length;
+  const initialAnalysisPending = jobs.length > 0 && analysisBusy && assessments.size === 0;
 
   return <div className="app-shell">
     <button className={`mobile-backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />
@@ -357,7 +458,7 @@ export default function App() {
         <button className={view === "groups" ? "active" : ""} onClick={() => switchView("groups")}><Layers3 /> Role families <b>{groups.length}</b></button>
         <button className={view === "discovery" ? "active" : ""} onClick={() => switchView("discovery")}><Compass /> Fit Discovery <b>{jobs.filter((job) => Object.keys(job.fitDiscovery?.responses || {}).length > 0).length}</b></button>
         <button className={view === "profile" ? "active" : ""} onClick={() => switchView("profile")}><UserRound /> Career profile <b>{readiness.score}%</b></button>
-        <button className={view === "comparisons" ? "active" : ""} onClick={() => switchView("comparisons")}><GitCompareArrows /> Similar roles <b>{comparisons.length}</b></button>
+        <button className={view === "comparisons" ? "active" : ""} onClick={() => switchView("comparisons")}><GitCompareArrows /> Similar roles <b>{view === "comparisons" ? comparisons.length : "…"}</b></button>
       </nav>
       <div className="sidebar-section"><span>Shortcuts</span><button onClick={openPortal}><ExternalLink /> Recruiting page</button><button onClick={() => setSyncOpen(true)}><Database /> Sync devices</button><button onClick={() => { setPortalDraft(settings.recruitingPortalUrl); setSettingsOpen(true); }}><Settings /> Settings</button></div>
       <div className="sidebar-coach"><Sparkles /><strong>Career coaching model</strong><p>Capability, interest, direction, and viability are assessed separately.</p></div>
@@ -368,6 +469,11 @@ export default function App() {
       <header className="topbar"><div className="topbar-title"><button className="icon-btn menu-btn" onClick={() => setSidebarOpen(true)}><Menu /></button><div><span>{view === "portfolio" ? "Decision portfolio" : view === "roles" ? "Opportunity inventory" : view === "groups" ? "Role patterns" : view === "discovery" ? "Scenario-based self-discovery" : view === "profile" ? "Career evidence" : "Similarity intelligence"}</span><h1>{view === "portfolio" ? "Where should I focus?" : view === "roles" ? "All job requisitions" : view === "groups" ? "Understand the role families" : view === "discovery" ? "Discover what each role may feel like" : view === "profile" ? "Build a profile that explains your fit" : "Compare related opportunities"}</h1></div></div><div className="top-actions"><button className="secondary" onClick={() => setSyncOpen(true)}><RefreshCw /> Sync</button><button className="primary" onClick={() => setUploadOpen(true)}><Plus /> Upload reqs</button></div></header>
 
       <div className="content">
+        {storageWarning && <section className="runtime-alert storage-alert"><AlertTriangle /><div><strong>Changes may not be saving</strong><p>{storageWarning}</p></div><button className="secondary" onClick={exportBackup}><Download /> Download backup</button><button className="icon-btn" onClick={() => setStorageWarning("")} aria-label="Dismiss storage warning"><X /></button></section>}
+        {analysisErrors.length > 0 && <section className="runtime-alert analysis-alert"><CircleHelp /><div><strong>{analysisErrors.length} role{analysisErrors.length === 1 ? "" : "s"} could not be analyzed</strong><p>{analysisErrors[0].title}: {analysisErrors[0].message}. The rest of your portfolio remains available.</p></div></section>}
+        {analysisBusy && assessments.size > 0 && <section className="analysis-refresh" role="status"><RefreshCw className="spin" /><span>Refreshing fit intelligence… {analysisProgress.done}/{analysisProgress.total}</span></section>}
+
+        {initialAnalysisPending ? <AnalysisLoading progress={analysisProgress} /> : <>
         {view === "portfolio" && <>
           {readiness.score < 70 && <section className="coach-banner"><div><UserRound /><span><strong>Your fit model is still developing</strong><p>Upload a resume, confirm evidence, and complete realistic Fit Discovery scenarios to make recommendations more reliable.</p></span></div><button onClick={() => switchView(jobs.length ? "discovery" : "profile")}>{jobs.length ? "Start discovery" : "Improve profile"} <ChevronRight /></button></section>}
           <section className="stats-grid v2"><Stat icon={<BriefcaseBusiness />} label="Portfolio" value={jobs.length} detail={`${groups.length} role families`} /><Stat icon={<Target />} label="Pursue now" value={pursueNowCount} detail="Strong capability + interest" tone="success" /><Stat icon={<Network />} label="Explore" value={exploreCount} detail="Resolve uncertainty through people" /><Stat icon={<TrendingUp />} label="Stretch" value={stretchCount} detail="High interest, manageable gaps" /><Stat icon={<AlertTriangle />} label="Stale" value={staleCount} detail="Older than 90 days" tone="warning" /></section>
@@ -408,6 +514,7 @@ export default function App() {
           if (!source || !target) return null;
           return <article key={`${source.id}-${target.id}`}><div className="similarity-score"><strong>{comparison.score}%</strong><span>{comparison.type.replace(/_/g, " ").toLowerCase()}</span></div><div className="comparison-jobs"><button onClick={() => setSelectedJobId(source.id)}>{source.title}</button><GitCompareArrows /><button onClick={() => setSelectedJobId(target.id)}>{target.title}</button></div><div className="comparison-reasons">{comparison.reasons.map((reason) => <span key={reason}>{reason}</span>)}</div></article>;
         })}</div> : <Empty icon={<GitCompareArrows />} title="No related pairs yet" text="Upload more job requisitions to compare role families, themes, and requirements." />}</section>}
+        </>}
       </div>
     </main>
 

@@ -1,3 +1,24 @@
+# ReqRadar v3.0.1 — Startup Reliability Hotfix
+
+## White-screen resolution
+
+- Moved portfolio assessment work out of the first synchronous render and into short asynchronous batches.
+- Reused each job fingerprint instead of rebuilding it repeatedly for every comparison.
+- Deferred pairwise comparison work until the Similar Roles workspace is opened.
+- Lazy-loaded PDF.js and its worker only when a PDF is selected.
+- Added a nonwhite startup screen with progress messaging before React mounts.
+- Added a top-level recovery screen for unexpected runtime errors.
+- Added guarded local-storage writes so quota or browser-storage failures show an actionable warning rather than unmounting the app.
+- Added recovery export and an explicit option to reset only ReqRadar browser data.
+
+## Compatibility
+
+- Preserves the v3.0 Fit Discovery Studio, all v2/v3 migrations, and the existing local-storage keys.
+- Existing jobs, resume evidence, preferences, scenario responses, links, notes, rankings, and backups remain available.
+- No user data is included in this deployment package.
+
+---
+
 # ReqRadar v3.0.0 — Fit Discovery Studio
 
 ## A deeper self-discovery experience

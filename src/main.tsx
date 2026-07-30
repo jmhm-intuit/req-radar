@@ -1,10 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import "./styles.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("ReqRadar root element was not found.");
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>
 );

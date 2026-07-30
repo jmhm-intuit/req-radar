@@ -596,15 +596,22 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   };
 }
 
-export function compareJobs(source: JobReq, target: JobReq): JobComparison {
-  const sourceFingerprint = buildFingerprint(source);
-  const targetFingerprint = buildFingerprint(target);
+export function compareJobFingerprints(
+  source: JobReq,
+  target: JobReq,
+  sourceFingerprint: JobFingerprint,
+  targetFingerprint: JobFingerprint
+): JobComparison {
   const titleScore = jaccardPercent(tokenSet(source.normalizedTitle || source.title), tokenSet(target.normalizedTitle || target.title));
   const sourceRequirements = sourceFingerprint.requirements.map((item) => normalizeText(item.name));
   const targetRequirements = targetFingerprint.requirements.map((item) => normalizeText(item.name));
   const requirementScore = jaccardPercent(sourceRequirements, targetRequirements);
   const themeScore = jaccardPercent(sourceFingerprint.themes.map(normalizeText), targetFingerprint.themes.map(normalizeText));
-  const groupScore = sourceFingerprint.primaryGroupId === targetFingerprint.primaryGroupId ? 100 : sourceFingerprint.groups.some((group) => targetFingerprint.groups.some((other) => other.id === group.id)) ? 55 : 0;
+  const groupScore = sourceFingerprint.primaryGroupId === targetFingerprint.primaryGroupId
+    ? 100
+    : sourceFingerprint.groups.some((group) => targetFingerprint.groups.some((other) => other.id === group.id))
+      ? 55
+      : 0;
   let score = Math.round(titleScore * 0.35 + requirementScore * 0.35 + themeScore * 0.15 + groupScore * 0.15);
   if (normalizeText(source.normalizedTitle) === normalizeText(target.normalizedTitle)) score = Math.max(82, score);
   if (source.jobId && normalizeText(source.jobId) === normalizeText(target.jobId)) score = 100;
@@ -631,11 +638,42 @@ export function compareJobs(source: JobReq, target: JobReq): JobComparison {
   };
 }
 
+export function compareJobs(source: JobReq, target: JobReq): JobComparison {
+  return compareJobFingerprints(source, target, buildFingerprint(source), buildFingerprint(target));
+}
+
 export function buildComparisons(jobs: JobReq[]): JobComparison[] {
   const comparisons: JobComparison[] = [];
+  const fingerprints = new Map(jobs.map((job) => [job.id, buildFingerprint(job)]));
   for (let left = 0; left < jobs.length; left += 1) {
     for (let right = left + 1; right < jobs.length; right += 1) {
-      const comparison = compareJobs(jobs[left], jobs[right]);
+      const sourceFingerprint = fingerprints.get(jobs[left].id);
+      const targetFingerprint = fingerprints.get(jobs[right].id);
+      if (!sourceFingerprint || !targetFingerprint) continue;
+      const comparison = compareJobFingerprints(jobs[left], jobs[right], sourceFingerprint, targetFingerprint);
+      if (comparison.type !== "LOW") comparisons.push(comparison);
+    }
+  }
+  return comparisons.sort((left, right) => right.score - left.score);
+}
+
+export function buildComparisonsFromAssessments(
+  jobs: JobReq[],
+  assessments: Map<string, JobAssessment>
+): JobComparison[] {
+  const comparisons: JobComparison[] = [];
+  for (let left = 0; left < jobs.length; left += 1) {
+    const sourceAssessment = assessments.get(jobs[left].id);
+    if (!sourceAssessment) continue;
+    for (let right = left + 1; right < jobs.length; right += 1) {
+      const targetAssessment = assessments.get(jobs[right].id);
+      if (!targetAssessment) continue;
+      const comparison = compareJobFingerprints(
+        jobs[left],
+        jobs[right],
+        sourceAssessment.fingerprint,
+        targetAssessment.fingerprint
+      );
       if (comparison.type !== "LOW") comparisons.push(comparison);
     }
   }

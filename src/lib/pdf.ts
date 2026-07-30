@@ -1,8 +1,4 @@
-import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { sha256ArrayBuffer, sha256Text } from "./jobs";
-
-GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export interface ExtractedSource {
   text: string;
@@ -16,6 +12,24 @@ function normalizeExtractedText(value: string): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+let pdfModulePromise: Promise<typeof import("pdfjs-dist")> | null = null;
+
+async function loadPdfModule(): Promise<typeof import("pdfjs-dist")> {
+  if (!pdfModulePromise) {
+    pdfModulePromise = Promise.all([
+      import("pdfjs-dist"),
+      import("pdfjs-dist/build/pdf.worker.min.mjs?url")
+    ]).then(([pdfjs, workerModule]) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
+      return pdfjs;
+    }).catch((error) => {
+      pdfModulePromise = null;
+      throw error;
+    });
+  }
+  return pdfModulePromise;
 }
 
 export async function extractSourceFromFile(file: File): Promise<ExtractedSource> {
@@ -37,6 +51,10 @@ export async function extractSourceFromFile(file: File): Promise<ExtractedSource
     throw new Error("ReqRadar currently supports PDF and TXT files.");
   }
 
+  // PDF.js is intentionally loaded only when a PDF is selected. This keeps the
+  // initial GitHub Pages bundle small and prevents a PDF runtime issue from
+  // blocking the rest of ReqRadar from starting.
+  const { getDocument } = await loadPdfModule();
   const loadingTask = getDocument({ data: new Uint8Array(buffer) });
   const document = await loadingTask.promise;
   const pages: string[] = [];

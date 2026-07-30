@@ -19,6 +19,27 @@ const JOBS_STORAGE_KEY = "req-radar:jobs:v1";
 const SETTINGS_STORAGE_KEY = "req-radar:settings:v1";
 const PROFILE_STORAGE_KEY = "req-radar:profile:v1";
 
+export interface StorageWriteResult {
+  ok: boolean;
+  bytes: number;
+  message: string;
+}
+
+function storageWrite(key: string, value: unknown, label: string): StorageWriteResult {
+  const serialized = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(serialized).byteLength;
+  try {
+    localStorage.setItem(key, serialized);
+    return { ok: true, bytes, message: "" };
+  } catch (error) {
+    const quota = error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    const detail = quota
+      ? `Browser storage is full while saving ${label}. Download a backup before removing older requisitions.`
+      : `ReqRadar could not save ${label} in this browser. Your current session is still open, but changes may be lost after refresh.`;
+    return { ok: false, bytes, message: detail };
+  }
+}
+
 const VALID_STATUSES = new Set<JobStatus>(["NEW", "EXPLORING", "PURSUING", "MAYBE", "APPLIED", "NOT_PURSUING", "CLOSED"]);
 const VALID_NETWORKING = new Set<NetworkingStage>([
   "NOT_STARTED", "CONTACT_IDENTIFIED", "MESSAGE_PLANNED", "CONTACTED", "RESPONSE_RECEIVED",
@@ -212,8 +233,8 @@ export function loadJobs(): JobReq[] {
   }
 }
 
-export function saveJobs(jobs: JobReq[]): void {
-  localStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(jobs));
+export function saveJobs(jobs: JobReq[]): StorageWriteResult {
+  return storageWrite(JOBS_STORAGE_KEY, jobs, "job requisitions");
 }
 
 export function loadSettings(): AppSettings {
@@ -225,8 +246,8 @@ export function loadSettings(): AppSettings {
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+export function saveSettings(settings: AppSettings): StorageWriteResult {
+  return storageWrite(SETTINGS_STORAGE_KEY, settings, "settings");
 }
 
 export function loadProfile(): UserProfile {
@@ -238,8 +259,8 @@ export function loadProfile(): UserProfile {
   }
 }
 
-export function saveProfile(profile: UserProfile): void {
-  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+export function saveProfile(profile: UserProfile): StorageWriteResult {
+  return storageWrite(PROFILE_STORAGE_KEY, profile, "career profile");
 }
 
 export function buildExportPayload(jobs: JobReq[], settings: AppSettings, profile: UserProfile, exportedAt = new Date().toISOString()): ReqRadarBackup {
