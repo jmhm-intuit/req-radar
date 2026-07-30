@@ -37,21 +37,22 @@ export function containsPhrase(source: string, phrase: string): boolean {
   const normalizedSource = ` ${normalizeText(source)} `;
   const normalizedPhrase = normalizeText(phrase);
   if (!normalizedPhrase) return false;
-  return normalizedSource.includes(` ${normalizedPhrase} `) || normalizedSource.includes(normalizedPhrase);
+  return normalizedSource.includes(` ${normalizedPhrase} `);
 }
 
 export function phraseCount(source: string, phrases: string[]): number {
-  const normalized = normalizeText(source);
+  const normalized = ` ${normalizeText(source)} `;
   return phrases.reduce((total, phrase) => {
     const target = normalizeText(phrase);
     if (!target) return total;
+    const boundedTarget = ` ${target} `;
     let count = 0;
     let from = 0;
     while (true) {
-      const index = normalized.indexOf(target, from);
+      const index = normalized.indexOf(boundedTarget, from);
       if (index < 0) break;
       count += 1;
-      from = index + target.length;
+      from = index + boundedTarget.length - 1;
     }
     return total + count;
   }, 0);

@@ -1,47 +1,55 @@
-# ReqRadar v2.0.0
+# ReqRadar v3.0.0 — Fit Discovery Studio
 
-## Career evidence foundation
+## A deeper self-discovery experience
 
-- Resume upload now creates evidence-backed skills instead of a flat keyword list.
-- Skills include category, estimated proficiency, evidence confidence, resume excerpts, confirmation, and exclusion controls.
-- Legacy v1.7 skill lists are migrated into confirmed profile skills.
+- Replaced the fixed, overlapping interest questionnaire with adaptive, job-specific scenarios.
+- Added a dedicated Fit Discovery workspace and a full-screen discovery studio.
+- Added question de-duplication through structured facets and one targeted scenario per facet.
+- Added a visible “This feels repetitive” action that explains the distinction or lets the applicant skip it.
 
-## Interest and career direction
+## Role Reality Preview
 
-- Added a ten-question career coaching interview using forced trade-offs.
-- Added a configurable work-preference model across strategy, transformation, AI, leadership, ambiguity, autonomy, variety, recurring operations, and other dimensions.
-- Added peak-experience capture with theme detection and confirmation.
-- Added possible future career directions such as AI Transformation Leader.
+- Translates each job description into recurring responsibilities, key stakeholders, impact modes, likely work rhythm, and success signals.
+- Separates **stated**, **strongly implied**, **possible interpretation**, and **unknown** information.
+- Creates an evidence-linked “plausible week in the role” without presenting assumptions as facts.
+- Preserves important unknowns rather than silently converting them into neutral scores.
 
-## Job intelligence
+## Scenario-based reflection
 
-- Every job now receives a structured fingerprint: role family, archetype, themes, leadership model, requirements, and work signals.
-- Capability Fit distinguishes proven, transferable, developmental gap, critical blocker, unknown, and not relevant.
-- Interest Fit compares actual work-design signals with confirmed preferences; missing information remains unknown.
-- Career Direction Fit evaluates whether a role advances a future direction the user wants to test.
-- Viability remains separate and enforces the 90-day stale posting rule unless the role is verified active.
-- Recommendation confidence and questions that could change the recommendation are visible.
+- Generates six to eight scenarios that reflect the actual role fingerprint.
+- Captures whether work would be energizing, comfortable, tolerable, draining, avoided, or context-dependent.
+- Captures desired frequency and confidence based on direct experience, related experience, estimate, or uncertainty.
+- Supports conditional preferences such as team maturity, decision authority, manager quality, frequency, scale, and amount of administration.
+- Connects reactions to peak career experiences and written reflection.
 
-## Portfolio organization
+## More realistic leadership discovery
 
-- Added dynamic role families and summaries of common themes, average fit, and repeated gaps.
-- Strong secondary role-family matches are retained, so one opportunity can appear in more than one meaningful cluster.
-- Added a Capability Fit × Interest Fit portfolio map.
-- Added portfolio-level recurring strengths and common gaps.
-- Retained filters, pagination, inline status changes, manual ranking, direct job links, bulk upload, duplicate checks, and device sync.
+- Separates direct people management from influence without authority.
+- Distinguishes setting direction, coaching, delegation, performance management, hiring/team design, people administration, executive influence, peer alignment, and organizational communication.
+- Allows an applicant to discover that some aspects of leadership are energizing while others are draining or conditional.
 
-## Networking experiments
+## Fit synthesis and recommendations
 
-- Networking is no longer part of the fit score.
-- Each role can hold a hypothesis, targeted questions, conversation notes, and learnings that may change the assessment.
+- Adds Work Content, Work Design, and Leadership/Social Fit alongside Capability and Career Direction.
+- Shows energizers, drains, conditions, contradictions, confidence, and unresolved questions.
+- Blends scenario evidence into Interest Fit progressively; sparse discovery evidence does not overpower the job-description signals.
+- Keeps recommendation, practical viability, user status, and next action separate.
+
+## Networking as a learning loop
+
+- Generates a job-specific hypothesis to test.
+- Converts unknowns into targeted networking questions.
+- Records whether an assumption was confirmed, disproved, nuanced, or remains unknown.
+- Records whether interest increased, stayed the same, or decreased after learning more.
+
+## Career profile evolution
+
+- Adds an emerging preference profile grouped into energizers, conditional preferences, likely drains, and areas that need more evidence.
+- Migrates Version 2 abstract interview answers as tentative rather than confirmed preferences.
+- Updates the career profile gradually from scenario evidence instead of rewriting it after a single answer.
 
 ## Compatibility
 
-- Imports and migrates ReqRadar v1.5, v1.6, and v1.7 backups.
-- Backup schema v4 includes the complete career profile and enriched role data.
-
-## Reliability improvements
-
-- Cleaned common internal-career-site navigation and icon artifacts before title extraction.
-- Requirement and interest analysis now prioritizes the actual overview, responsibilities, and qualifications instead of footer or cookie text.
-- Related-role detection now surfaces meaningful adjacency even when titles differ.
+- Preserves jobs, resume evidence, skill overrides, role groups, networking notes, ranking controls, statuses, and manual sync.
+- Imports previous ReqRadar backups and normalizes missing Version 3 discovery fields.
+- Backup schema v5 includes Fit Discovery sessions and the emerging preference profile.

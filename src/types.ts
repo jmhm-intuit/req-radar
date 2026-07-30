@@ -48,9 +48,41 @@ export type InterestDimension =
   | "RECURRING_OPERATIONS"
   | "INDIVIDUAL_CONTRIBUTOR";
 
+export type DiscoveryFacet =
+  | "STRATEGIC_FRAMING"
+  | "ANALYTICAL_PROBLEM_SOLVING"
+  | "BUILDING_SYSTEMS"
+  | "RUNNING_CADENCE"
+  | "AMBIGUITY_NAVIGATION"
+  | "AUTONOMY_AND_AUTHORITY"
+  | "WORK_VARIETY"
+  | "AI_TRANSFORMATION"
+  | "CUSTOMER_IMPACT"
+  | "PRODUCT_OWNERSHIP"
+  | "BUSINESS_OWNERSHIP"
+  | "SETTING_TEAM_DIRECTION"
+  | "COACHING_AND_DEVELOPMENT"
+  | "DELEGATION_AND_ACCOUNTABILITY"
+  | "PERFORMANCE_MANAGEMENT"
+  | "HIRING_AND_TEAM_DESIGN"
+  | "PEOPLE_ADMINISTRATION"
+  | "EXECUTIVE_INFLUENCE"
+  | "PEER_ALIGNMENT"
+  | "INFLUENCE_WITHOUT_AUTHORITY"
+  | "ORGANIZATIONAL_COMMUNICATION";
+
 export type PreferenceScore = -2 | -1 | 0 | 1 | 2;
 export type PreferenceImportance = 1 | 2 | 3;
 export type Confidence = "HIGH" | "MEDIUM" | "LOW";
+export type ScenarioConfidence = "DIRECT_EXPERIENCE" | "RELATED_EXPERIENCE" | "ESTIMATE" | "UNSURE";
+export type ScenarioReaction = "SEEK_MORE" | "ENERGIZING" | "COMFORTABLE" | "TOLERATE" | "DRAINING" | "AVOID" | "DEPENDS";
+export type ScenarioFrequency = "MAJOR" | "RECURRING" | "OCCASIONAL" | "NECESSARY_ONLY" | "NOT_IDEAL";
+export type InferenceLevel = "STATED" | "STRONGLY_IMPLIED" | "POSSIBLE" | "UNKNOWN";
+export type PreferenceFacetStatus = "TENTATIVE" | "CONFIRMED" | "CONDITIONAL";
+export type DiscoverySessionStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+export type NetworkingLearningOutcome = "NOT_RECORDED" | "CONFIRMED" | "DISPROVED" | "NUANCED" | "STILL_UNKNOWN";
+export type InterestChange = "NOT_RECORDED" | "INCREASED" | "SAME" | "DECREASED";
+
 export type SkillCategory =
   | "STRATEGY"
   | "OPERATIONS"
@@ -110,8 +142,32 @@ export interface CareerPreference {
   dimension: InterestDimension;
   score: PreferenceScore;
   importance: PreferenceImportance;
-  source: "DEFAULT" | "INTERVIEW" | "MANUAL";
+  source: "DEFAULT" | "INTERVIEW" | "MANUAL" | "DISCOVERY";
   rationale: string;
+}
+
+export interface PreferenceFacetEvidence {
+  id: string;
+  sourceType: "LEGACY_INTERVIEW" | "SCENARIO" | "PEAK_EXPERIENCE" | "MANUAL";
+  sourceLabel: string;
+  detail: string;
+  jobId?: string;
+  scenarioId?: string;
+  createdAt: string;
+}
+
+export interface PreferenceFacet {
+  id: string;
+  facet: DiscoveryFacet;
+  label: string;
+  dimension: InterestDimension;
+  preference: PreferenceScore;
+  confidence: number;
+  importance: PreferenceImportance;
+  status: PreferenceFacetStatus;
+  conditions: string[];
+  evidence: PreferenceFacetEvidence[];
+  updatedAt: string;
 }
 
 export interface PeakExperience {
@@ -135,10 +191,109 @@ export interface UserProfile {
   skills: ProfileSkill[];
   preferences: Record<InterestDimension, CareerPreference>;
   interviewAnswers: Record<string, string>;
+  discoveryPreferences: PreferenceFacet[];
+  legacyInterviewMigrated: boolean;
   peakExperiences: PeakExperience[];
   careerDirections: CareerDirection[];
   profileNotes: string;
   updatedAt: string;
+}
+
+export interface RoleScenario {
+  id: string;
+  facet: DiscoveryFacet;
+  dimension: InterestDimension;
+  title: string;
+  situation: string;
+  responsibility: string;
+  tension: string;
+  purpose: string;
+  evidence: string[];
+  inferenceLevel: InferenceLevel;
+  frequencyAssumption: string;
+  conditionOptions: string[];
+  reflectionPrompt: string;
+}
+
+export interface ScenarioResponse {
+  scenarioId: string;
+  facet: DiscoveryFacet;
+  reaction: ScenarioReaction;
+  preferredFrequency: ScenarioFrequency;
+  confidence: ScenarioConfidence;
+  conditions: string[];
+  linkedExperienceId: string;
+  reflection: string;
+  markedRepetitive: boolean;
+  answeredAt: string;
+}
+
+export interface FitDiscoverySession {
+  id: string;
+  status: DiscoverySessionStatus;
+  scenarioOrder: string[];
+  responses: Record<string, ScenarioResponse>;
+  skippedScenarioIds: string[];
+  repeatedScenarioIds: string[];
+  startedAt: string;
+  completedAt: string;
+  lastViewedAt: string;
+  hypothesis: string;
+  unresolvedQuestions: string[];
+  networkingOutcome: NetworkingLearningOutcome;
+  interestChange: InterestChange;
+  learningNotes: string;
+}
+
+export interface RoleRealityItem {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  evidence: string[];
+  inferenceLevel: InferenceLevel;
+}
+
+export interface RoleWeekItem {
+  day: string;
+  activity: string;
+  evidence: string;
+  inferenceLevel: InferenceLevel;
+}
+
+export interface RoleRealityPreview {
+  responsibilities: RoleRealityItem[];
+  stakeholders: RoleRealityItem[];
+  impactModes: RoleRealityItem[];
+  workRhythm: RoleRealityItem[];
+  successSignals: RoleRealityItem[];
+  unknowns: string[];
+  week: RoleWeekItem[];
+}
+
+export interface DiscoveryDimensionScore {
+  id: "WORK_CONTENT" | "WORK_DESIGN" | "LEADERSHIP_SOCIAL";
+  label: string;
+  score: number;
+  confidence: number;
+  answeredFacets: DiscoveryFacet[];
+  explanation: string;
+}
+
+export interface DiscoverySynthesis {
+  score: number;
+  confidence: number;
+  status: DiscoverySessionStatus;
+  answeredCount: number;
+  targetCount: number;
+  dimensions: DiscoveryDimensionScore[];
+  energizers: string[];
+  drains: string[];
+  conditions: string[];
+  unresolvedQuestions: string[];
+  contradictions: string[];
+  nextQuestion: string;
+  hypothesis: string;
 }
 
 export interface JobReq {
@@ -181,6 +336,7 @@ export interface JobReq {
   interestAdjustment: number;
   groupOverride: string;
   fitNotes: string;
+  fitDiscovery: FitDiscoverySession;
   createdAt: string;
   updatedAt: string;
   isDemo?: boolean;
@@ -261,6 +417,11 @@ export interface JobAssessment {
   capabilityScore: number;
   interestSignals: InterestSignalAssessment[];
   interestScore: number;
+  baseInterestScore: number;
+  discovery: DiscoverySynthesis;
+  workContentScore: number;
+  workDesignScore: number;
+  leadershipSocialScore: number;
   directionScore: number;
   directionMatches: string[];
   viabilityScore: number;

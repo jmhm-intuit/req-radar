@@ -13,6 +13,7 @@ import type {
   UserProfile
 } from "../types";
 import { createDefaultProfile, normalizeLegacyProfile } from "./profile";
+import { normalizeDiscoverySession } from "./discovery";
 
 const JOBS_STORAGE_KEY = "req-radar:jobs:v1";
 const SETTINGS_STORAGE_KEY = "req-radar:settings:v1";
@@ -154,6 +155,7 @@ export function normalizeJobReq(value: unknown): JobReq | null {
     interestAdjustment,
     groupOverride: stringValue(job.groupOverride),
     fitNotes: stringValue(job.fitNotes),
+    fitDiscovery: normalizeDiscoverySession(job.fitDiscovery),
     createdAt: stringValue(job.createdAt) || now,
     updatedAt: stringValue(job.updatedAt) || stringValue(job.createdAt) || now,
     ...(job.isDemo ? { isDemo: true } : {})
@@ -243,7 +245,7 @@ export function saveProfile(profile: UserProfile): void {
 export function buildExportPayload(jobs: JobReq[], settings: AppSettings, profile: UserProfile, exportedAt = new Date().toISOString()): ReqRadarBackup {
   return {
     app: "ReqRadar",
-    schemaVersion: 4,
+    schemaVersion: 5,
     appVersion: __APP_VERSION__,
     exportedAt,
     jobs,
@@ -305,7 +307,7 @@ export function downloadJson(payload: ReqRadarBackup): void {
   const link = document.createElement("a");
   const date = payload.exportedAt.slice(0, 10);
   link.href = url;
-  link.download = `req-radar-v2-backup-${date}.json`;
+  link.download = `req-radar-v3-backup-${date}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();

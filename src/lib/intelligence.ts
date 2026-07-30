@@ -23,6 +23,7 @@ import type {
   UserProfile,
   WorkSignal
 } from "../types";
+import { synthesizeDiscovery, discoveryConfidenceLabel } from "./discovery";
 import {
   average,
   clamp,
@@ -504,11 +505,18 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const capabilitySkills = fingerprint.requirements.map((requirement) => capabilityStatus(job, requirement, profile));
   const capability = capabilityScore(capabilitySkills);
   const interestSignals = fingerprint.workSignals.map((signal) => interestSignalAssessment(signal, profile));
-  const interest = calculateInterest(interestSignals, job.interestAdjustment);
+  const baseInterest = calculateInterest(interestSignals, 0);
+  const discovery = synthesizeDiscovery(job, profile, fingerprint);
+  const discoveryWeight = discovery.answeredCount === 0
+    ? 0
+    : Math.min(0.78, 0.18 + (discovery.answeredCount / Math.max(1, discovery.targetCount)) * 0.60);
+  const interest = clamp(Math.round(baseInterest * (1 - discoveryWeight) + discovery.score * discoveryWeight + job.interestAdjustment));
   const direction = directionAssessment(job, profile, fingerprint);
   const blockers = capabilitySkills.filter((item) => item.status === "CRITICAL_BLOCKER").map((item) => item.requirement.name);
   const unknowns = uniqueStrings([
-    ...interestSignals.filter((item) => item.tone === "UNKNOWN" && item.preference.importance >= 2).map((item) => item.label),
+    ...(discovery.answeredCount
+      ? discovery.unresolvedQuestions.slice(0, 5)
+      : interestSignals.filter((item) => item.tone === "UNKNOWN" && item.preference.importance >= 2).map((item) => item.label)),
     ...capabilitySkills.filter((item) => item.status === "UNKNOWN" && item.requirement.importance === "MUST").map((item) => item.requirement.name),
     ...(fingerprint.leadershipModel === "Leadership model unclear" ? ["Leadership model"] : [])
   ]);
@@ -521,7 +529,11 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const priorityAdjustment = job.manualPriority === "HIGH" ? 8 : job.manualPriority === "LOW" ? -8 : job.manualPriority === "ARCHIVE" ? -25 : 0;
   const rawScore = capability * 0.35 + interest * 0.30 + direction.score * 0.20 + viable.score * 0.15;
   const finalScore = clamp(Math.round(rawScore + job.manualAdjustment + priorityAdjustment));
-  const confidence = assessmentConfidence(profile, fingerprint, unknowns);
+  const evidenceConfidence = assessmentConfidence(profile, fingerprint, unknowns);
+  const discoveryConfidence = discoveryConfidenceLabel(discovery.confidence);
+  const confidence: Confidence = discovery.answeredCount >= 4
+    ? (evidenceConfidence === "LOW" ? discoveryConfidence : discoveryConfidence === "HIGH" ? "HIGH" : evidenceConfidence)
+    : evidenceConfidence;
 
   const positiveInterest = interestSignals.filter((item) => item.tone === "POSITIVE").sort((left, right) => right.preference.importance - left.preference.importance || right.alignmentScore - left.alignmentScore);
   const negativeInterest = interestSignals.filter((item) => item.tone === "NEGATIVE").sort((left, right) => right.preference.importance - left.preference.importance || left.alignmentScore - right.alignmentScore);
@@ -530,7 +542,9 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
 
   const reasons = uniqueStrings([
     `${capability}% Capability Fit: ${proven} proven and ${transferable} transferable requirements`,
-    `${interest}% Interest Fit${positiveInterest[0] ? `, supported by ${positiveInterest[0].label.toLowerCase()}` : ""}`,
+    `${interest}% Interest Fit${discovery.answeredCount ? `, informed by ${discovery.answeredCount} realistic scenario${discovery.answeredCount === 1 ? "" : "s"}` : positiveInterest[0] ? `, supported by ${positiveInterest[0].label.toLowerCase()}` : ""}`,
+    ...(discovery.energizers[0] ? [`Likely energizer: ${discovery.energizers[0]}`] : []),
+    ...(discovery.drains[0] ? [`Potential drain: ${discovery.drains[0]}`] : []),
     `${direction.score}% Career Direction Fit${direction.matches.length ? ` with ${direction.matches[0]}` : ""}`,
     viable.label,
     ...(negativeInterest[0]
@@ -546,6 +560,7 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   let nextAction = "Review the evidence and decide whether to explore.";
   if (stale) nextAction = "Confirm the requisition is active before investing more time.";
   else if (blockers.length) nextAction = "Validate whether the critical requirement is truly non-negotiable.";
+  else if (discovery.answeredCount < Math.min(5, discovery.targetCount)) nextAction = `Continue Fit Discovery: ${discovery.nextQuestion}`;
   else if (recommendation === "PURSUE_NOW" && job.networkingStage === "NOT_STARTED") nextAction = "Identify a contact and validate the role before applying.";
   else if (recommendation === "PURSUE_NOW") nextAction = "Continue networking and prepare a tailored application.";
   else if (recommendation === "EXPLORE_NETWORKING") nextAction = "Use a networking conversation to resolve the key unknowns.";
@@ -559,6 +574,11 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
     capabilityScore: capability,
     interestSignals,
     interestScore: interest,
+    baseInterestScore: baseInterest,
+    discovery,
+    workContentScore: discovery.dimensions.find((item) => item.id === "WORK_CONTENT")?.score || 50,
+    workDesignScore: discovery.dimensions.find((item) => item.id === "WORK_DESIGN")?.score || 50,
+    leadershipSocialScore: discovery.dimensions.find((item) => item.id === "LEADERSHIP_SOCIAL")?.score || 50,
     directionScore: direction.score,
     directionMatches: direction.matches,
     viabilityScore: viable.score,

@@ -4,10 +4,13 @@ import {
   SKILL_TAXONOMY,
   THEME_DEFINITIONS
 } from "../data/ontology";
+import { facetDefinition } from "../data/discovery";
 import type {
   CareerDirection,
   CareerPreference,
   Confidence,
+  DiscoveryFacet,
+  PreferenceFacet,
   InterestDimension,
   PeakExperience,
   PreferenceScore,
@@ -32,6 +35,8 @@ export function createDefaultProfile(): UserProfile {
     skills: [],
     preferences: structuredCloneSafe(DEFAULT_PREFERENCES),
     interviewAnswers: {},
+    discoveryPreferences: [],
+    legacyInterviewMigrated: false,
     peakExperiences: [],
     careerDirections: [
       {
@@ -228,6 +233,7 @@ export function profileThemes(profile: UserProfile): Array<{ label: string; coun
   const sources = [
     ...extractThemes(profile.resumeText, 12),
     ...profile.peakExperiences.flatMap((item) => item.confirmedThemes.length ? item.confirmedThemes : item.detectedThemes),
+    ...profile.discoveryPreferences.filter((item) => item.preference >= 1).map((item) => item.label),
     ...profile.careerDirections.flatMap((direction) => direction.keywords)
   ];
   return topCounts(sources, 10);
@@ -242,12 +248,134 @@ export function profileReadiness(profile: UserProfile): {
     { label: "Resume uploaded", complete: Boolean(profile.resumeText.trim()) },
     { label: "At least 8 skills detected", complete: profile.skills.filter((skill) => !skill.excluded).length >= 8 },
     { label: "Skills reviewed", complete: profile.skills.filter((skill) => !skill.excluded).some((skill) => skill.confirmed) },
-    { label: "Interest interview completed", complete: Object.keys(profile.interviewAnswers).length >= Math.ceil(INTERVIEW_QUESTIONS.length * 0.7) },
+    { label: "Work preferences emerging", complete: profile.discoveryPreferences.length >= 3 || Object.keys(profile.interviewAnswers).length >= Math.ceil(INTERVIEW_QUESTIONS.length * 0.7) },
     { label: "Peak experience captured", complete: profile.peakExperiences.some((item) => item.description.trim().length >= 40) },
     { label: "Career direction defined", complete: profile.careerDirections.some((item) => item.label.trim()) }
   ];
   const score = Math.round((steps.filter((step) => step.complete).length / steps.length) * 100);
   return { score, label: score >= 85 ? "Ready" : score >= 55 ? "Developing" : "Needs setup", steps };
+}
+
+
+const LEGACY_DISCOVERY_MAP: Record<string, Record<string, Array<{ facet: DiscoveryFacet; preference: PreferenceScore }>>> = {
+  "strategy-execution": {
+    define: [{ facet: "STRATEGIC_FRAMING", preference: 2 }],
+    execute: [{ facet: "STRATEGIC_FRAMING", preference: -1 }, { facet: "RUNNING_CADENCE", preference: 1 }],
+    balanced: [{ facet: "STRATEGIC_FRAMING", preference: 1 }, { facet: "RUNNING_CADENCE", preference: 0 }]
+  },
+  "leadership-mode": {
+    people: [{ facet: "SETTING_TEAM_DIRECTION", preference: 2 }, { facet: "COACHING_AND_DEVELOPMENT", preference: 2 }],
+    influence: [{ facet: "INFLUENCE_WITHOUT_AUTHORITY", preference: 2 }, { facet: "EXECUTIVE_INFLUENCE", preference: 1 }],
+    either: [{ facet: "SETTING_TEAM_DIRECTION", preference: 1 }, { facet: "INFLUENCE_WITHOUT_AUTHORITY", preference: 1 }]
+  },
+  "build-optimize": {
+    build: [{ facet: "BUILDING_SYSTEMS", preference: 2 }, { facet: "RUNNING_CADENCE", preference: -1 }],
+    optimize: [{ facet: "BUILDING_SYSTEMS", preference: -1 }, { facet: "RUNNING_CADENCE", preference: 1 }],
+    transform: [{ facet: "BUILDING_SYSTEMS", preference: 1 }]
+  },
+  "ambiguity-clarity": {
+    high: [{ facet: "AMBIGUITY_NAVIGATION", preference: 2 }],
+    moderate: [{ facet: "AMBIGUITY_NAVIGATION", preference: 1 }],
+    low: [{ facet: "AMBIGUITY_NAVIGATION", preference: -2 }]
+  },
+  "technology-theme": {
+    central: [{ facet: "AI_TRANSFORMATION", preference: 2 }],
+    enabler: [{ facet: "AI_TRANSFORMATION", preference: 1 }],
+    optional: [{ facet: "AI_TRANSFORMATION", preference: 0 }]
+  },
+  "work-rhythm": {
+    varied: [{ facet: "WORK_VARIETY", preference: 2 }, { facet: "RUNNING_CADENCE", preference: -2 }],
+    cadence: [{ facet: "WORK_VARIETY", preference: -1 }, { facet: "RUNNING_CADENCE", preference: 2 }],
+    hybrid: [{ facet: "WORK_VARIETY", preference: 1 }, { facet: "RUNNING_CADENCE", preference: 0 }]
+  },
+  "impact-mode": {
+    people: [{ facet: "COACHING_AND_DEVELOPMENT", preference: 2 }],
+    customer: [{ facet: "CUSTOMER_IMPACT", preference: 2 }],
+    enterprise: [{ facet: "BUILDING_SYSTEMS", preference: 2 }, { facet: "EXECUTIVE_INFLUENCE", preference: 1 }]
+  },
+  ownership: {
+    direct: [{ facet: "BUSINESS_OWNERSHIP", preference: 2 }],
+    influence: [{ facet: "BUSINESS_OWNERSHIP", preference: -1 }, { facet: "INFLUENCE_WITHOUT_AUTHORITY", preference: 2 }],
+    mixed: [{ facet: "BUSINESS_OWNERSHIP", preference: 1 }, { facet: "INFLUENCE_WITHOUT_AUTHORITY", preference: 1 }]
+  },
+  "analytical-intensity": {
+    high: [{ facet: "ANALYTICAL_PROBLEM_SOLVING", preference: 2 }],
+    moderate: [{ facet: "ANALYTICAL_PROBLEM_SOLVING", preference: 1 }],
+    light: [{ facet: "ANALYTICAL_PROBLEM_SOLVING", preference: -1 }]
+  },
+  "product-business": {
+    product: [{ facet: "PRODUCT_OWNERSHIP", preference: 2 }],
+    business: [{ facet: "STRATEGIC_FRAMING", preference: 2 }, { facet: "BUILDING_SYSTEMS", preference: 1 }],
+    both: [{ facet: "PRODUCT_OWNERSHIP", preference: 1 }, { facet: "STRATEGIC_FRAMING", preference: 1 }]
+  }
+};
+
+function legacyAnswersToDiscoveryPreferences(answers: Record<string, string>): PreferenceFacet[] {
+  const grouped = new Map<DiscoveryFacet, PreferenceScore[]>();
+  Object.entries(answers).forEach(([questionId, choiceId]) => {
+    (LEGACY_DISCOVERY_MAP[questionId]?.[choiceId] || []).forEach((item) => {
+      grouped.set(item.facet, [...(grouped.get(item.facet) || []), item.preference]);
+    });
+  });
+  const now = new Date().toISOString();
+  return [...grouped.entries()].map(([facet, values]) => {
+    const definition = facetDefinition(facet);
+    return {
+      id: makeId("preference-facet"),
+      facet,
+      label: definition.label,
+      dimension: definition.dimension,
+      preference: choosePreferenceScore(values),
+      confidence: 35,
+      importance: definition.defaultImportance,
+      status: "TENTATIVE",
+      conditions: [],
+      evidence: [{
+        id: makeId("pref-evidence"),
+        sourceType: "LEGACY_INTERVIEW",
+        sourceLabel: "Version 2 abstract interview",
+        detail: "Imported as tentative. Validate this preference through realistic job scenarios.",
+        createdAt: now
+      }],
+      updatedAt: now
+    } satisfies PreferenceFacet;
+  });
+}
+
+function normalizeDiscoveryPreferences(value: unknown, answers: Record<string, string>): PreferenceFacet[] {
+  if (!Array.isArray(value)) return legacyAnswersToDiscoveryPreferences(answers);
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const raw = item as Partial<PreferenceFacet>;
+    if (!raw.facet) return [];
+    const definition = facetDefinition(raw.facet);
+    return [{
+      id: typeof raw.id === "string" ? raw.id : makeId("preference-facet"),
+      facet: raw.facet,
+      label: typeof raw.label === "string" ? raw.label : definition.label,
+      dimension: raw.dimension || definition.dimension,
+      preference: raw.preference === -2 || raw.preference === -1 || raw.preference === 0 || raw.preference === 1 || raw.preference === 2 ? raw.preference : 0,
+      confidence: typeof raw.confidence === "number" ? Math.max(0, Math.min(100, raw.confidence)) : 35,
+      importance: raw.importance === 1 || raw.importance === 2 || raw.importance === 3 ? raw.importance : definition.defaultImportance,
+      status: raw.status === "CONFIRMED" || raw.status === "CONDITIONAL" ? raw.status : "TENTATIVE",
+      conditions: Array.isArray(raw.conditions) ? raw.conditions.filter((condition): condition is string => typeof condition === "string") : [],
+      evidence: Array.isArray(raw.evidence) ? raw.evidence.flatMap((evidence) => {
+        if (!evidence || typeof evidence !== "object") return [];
+        const entry = evidence as PreferenceFacet["evidence"][number];
+        if (typeof entry.detail !== "string") return [];
+        return [{
+          id: typeof entry.id === "string" ? entry.id : makeId("pref-evidence"),
+          sourceType: entry.sourceType || "MANUAL",
+          sourceLabel: typeof entry.sourceLabel === "string" ? entry.sourceLabel : "Imported evidence",
+          detail: entry.detail,
+          ...(typeof entry.jobId === "string" ? { jobId: entry.jobId } : {}),
+          ...(typeof entry.scenarioId === "string" ? { scenarioId: entry.scenarioId } : {}),
+          createdAt: typeof entry.createdAt === "string" ? entry.createdAt : ""
+        }];
+      }) : [],
+      updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : ""
+    } satisfies PreferenceFacet];
+  });
 }
 
 export function normalizeLegacyProfile(value: unknown): UserProfile {
@@ -346,12 +474,19 @@ export function normalizeLegacyProfile(value: unknown): UserProfile {
     })
     : [];
 
+  const interviewAnswers = profile.interviewAnswers && typeof profile.interviewAnswers === "object"
+    ? Object.fromEntries(Object.entries(profile.interviewAnswers as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+    : {};
+  const discoveryPreferences = normalizeDiscoveryPreferences(profile.discoveryPreferences, interviewAnswers);
+
   return {
     resumeFileName,
     resumeText,
     skills: resumeText ? extractProfileSkills(resumeText, skills) : skills,
     preferences,
-    interviewAnswers: profile.interviewAnswers && typeof profile.interviewAnswers === "object" ? Object.fromEntries(Object.entries(profile.interviewAnswers as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string")) : {},
+    interviewAnswers,
+    discoveryPreferences,
+    legacyInterviewMigrated: profile.legacyInterviewMigrated === true || Boolean(Object.keys(interviewAnswers).length),
     peakExperiences,
     careerDirections,
     profileNotes: typeof profile.profileNotes === "string" ? profile.profileNotes : "",

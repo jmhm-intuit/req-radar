@@ -6,6 +6,7 @@ import type {
   ParsedJob
 } from "../types";
 import { compareJobs } from "./intelligence";
+import { createEmptyDiscoverySession } from "./discovery";
 import { makeId, normalizeText, normalizeWhitespace, phraseCount, uniqueStrings } from "./text";
 
 const FIELD_LABELS = {
@@ -252,6 +253,7 @@ export function createJob(
     interestAdjustment: 0,
     groupOverride: "",
     fitNotes: "",
+    fitDiscovery: createEmptyDiscoverySession(),
     createdAt: now,
     updatedAt: now
   };

@@ -72,7 +72,7 @@ export function JobTable({ jobs, assessments, onOpen, onUpdate, compact = false,
             <td><select className={`compact-select ${statusClass(job.status)}`} value={job.status} onChange={(event) => onUpdate(job.id, { status: event.target.value as JobStatus })}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}</select></td>
             <td><span className={`recommendation ${recommendationClass(assessment.recommendation)}`}>{recommendationLabel(assessment.recommendation)}</span><small className="table-sub confidence">{assessment.confidence.toLowerCase()} confidence</small></td>
             <td><Score value={assessment.capabilityScore} label={assessment.criticalBlockers.length ? "blocker" : "fit"} /></td>
-            <td><Score value={assessment.interestScore} label="fit" /></td>
+            <td><div className="table-fit-stack"><Score value={assessment.interestScore} label="fit" /><small>{assessment.discovery.answeredCount}/{assessment.discovery.targetCount} scenarios</small></div></td>
             {!compact && <td><Score value={assessment.directionScore} label="direction" /></td>}
             <td><span className={assessment.ageDays !== null && assessment.ageDays > 90 && !job.ageOverride && !job.verifiedActiveAt ? "age-old" : "age-label"}>{assessment.ageLabel}</span></td>
             {!compact && <td><select className="compact-select network-select" value={job.networkingStage} onChange={(event) => onUpdate(job.id, { networkingStage: event.target.value as NetworkingStage })}>{NETWORKING_OPTIONS.map((stage) => <option key={stage} value={stage}>{networkingStageLabel(stage)}</option>)}</select></td>}

@@ -2,5 +2,5 @@
 set -e
 
 git add -A
-git commit -m "Deploy ReqRadar v2.0"
+git commit -m "Deploy ReqRadar v3.0.0"
 git push origin main
