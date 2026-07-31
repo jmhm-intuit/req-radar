@@ -252,6 +252,7 @@ export function createJob(
     recommendationOverride: "AUTO",
     interestAdjustment: 0,
     groupOverride: "",
+    focusBucketOverride: "AUTO",
     fitNotes: "",
     fitDiscovery: createEmptyDiscoverySession(),
     createdAt: now,

@@ -8,6 +8,7 @@ import {
 import type {
   CapabilitySkillAssessment,
   Confidence,
+  FocusBucket,
   InterestDimension,
   InterestSignalAssessment,
   JobAssessment,
@@ -23,7 +24,8 @@ import type {
   UserProfile,
   WorkSignal
 } from "../types";
-import { synthesizeDiscovery, discoveryConfidenceLabel } from "./discovery";
+import { synthesizeDiscovery, discoveryConfidenceLabel, generateRoleScenarios } from "./discovery";
+import { generalThemeInterestForJob } from "./themes";
 import {
   average,
   clamp,
@@ -500,17 +502,107 @@ export function suggestedNetworkingQuestions(assessment: JobAssessment): string[
   return uniqueStrings(questions).slice(0, 6);
 }
 
+function technicalRoleAssessment(job: JobReq, fingerprint: JobFingerprint): { score: number; reason: string } {
+  const source = normalizeText(`${job.title} ${job.category} ${job.descriptionText} ${job.qualifications.join(" ")}`);
+  const technicalRequirements = fingerprint.requirements.filter((item) => item.category === "TECHNOLOGY");
+  const handsOnHits = phraseCount(source, [
+    "hands-on", "write code", "coding", "software development", "software engineering", "production systems",
+    "system design", "technical architecture", "machine learning model", "data pipeline", "api development",
+    "python", "java", "sql", "cloud infrastructure", "debug", "deploy"
+  ]);
+  const businessTechHits = phraseCount(source, [
+    "ai adoption", "technology transformation", "digital transformation", "partner with engineering",
+    "product strategy", "technical stakeholders", "emerging technology"
+  ]);
+  const mustTechnical = technicalRequirements.filter((item) => item.importance === "MUST").length;
+  const score = clamp(Math.round(handsOnHits * 15 + mustTechnical * 12 + technicalRequirements.length * 5 - businessTechHits * 4));
+  if (handsOnHits >= 3) return { score, reason: "The role appears to require substantial hands-on technical execution." };
+  if (mustTechnical >= 3) return { score, reason: "Several technical capabilities appear to be day-one requirements." };
+  if (businessTechHits >= 2 && handsOnHits <= 1) return { score: Math.min(score, 42), reason: "Technology is primarily a transformation or partnership context, not clearly hands-on execution." };
+  if (technicalRequirements.length) return { score, reason: "The role includes technical content, but the amount of hands-on execution is not fully clear." };
+  return { score: Math.min(score, 20), reason: "The role is not primarily technical based on the available posting evidence." };
+}
+
+export function focusBucketLabel(bucket: FocusBucket): string {
+  const labels: Record<FocusBucket, string> = {
+    READY_TO_PURSUE: "Ready to pursue",
+    NEEDS_DISCOVERY: "Needs role discovery",
+    NEEDS_NETWORKING: "Needs networking",
+    HIGH_INTEREST_STRETCH: "High-interest stretch",
+    CAPABLE_NOT_COMPELLING: "Capable but not compelling",
+    TOO_TECHNICAL: "Too technical right now",
+    NOT_INTERESTED: "Not interested enough",
+    TOO_OLD: "Too old — verify active",
+    CRITICAL_BLOCKER: "Critical blocker",
+    INACTIVE: "Not pursuing / closed"
+  };
+  return labels[bucket];
+}
+
+export function focusBucketDescription(bucket: FocusBucket): string {
+  const descriptions: Record<FocusBucket, string> = {
+    READY_TO_PURSUE: "Strong capability and interest with no major practical blocker.",
+    NEEDS_DISCOVERY: "The broad themes look promising, but role-specific responsibilities still need reflection.",
+    NEEDS_NETWORKING: "An important unknown could materially change the decision.",
+    HIGH_INTEREST_STRETCH: "The work is attractive, with capability gaps that may be manageable.",
+    CAPABLE_NOT_COMPELLING: "Your experience matches, but the work may not provide enough energy or direction fit.",
+    TOO_TECHNICAL: "The role appears to require technical execution beyond the current evidence or preferred work mix.",
+    NOT_INTERESTED: "Interest is low enough that stronger alternatives deserve attention first.",
+    TOO_OLD: "The posting is more than 90 days old and should be verified before investing more time.",
+    CRITICAL_BLOCKER: "A mandatory credential or non-negotiable requirement is not currently supported.",
+    INACTIVE: "You marked the opportunity as not pursuing or closed."
+  };
+  return descriptions[bucket];
+}
+
+function determineFocusBucket(
+  job: JobReq,
+  capability: number,
+  interest: number,
+  recommendation: Recommendation,
+  blockers: string[],
+  stale: boolean,
+  technical: { score: number; reason: string },
+  discovery: ReturnType<typeof synthesizeDiscovery>,
+  generalThemeConfidence: number,
+  unknowns: string[]
+): { bucket: FocusBucket; reason: string } {
+  if (job.focusBucketOverride !== "AUTO") return { bucket: job.focusBucketOverride, reason: "Manually assigned focus category." };
+  if (job.status === "NOT_PURSUING" || job.status === "CLOSED" || job.manualPriority === "ARCHIVE") return { bucket: "INACTIVE", reason: "The opportunity is currently inactive in your workflow." };
+  if (blockers.length) return { bucket: "CRITICAL_BLOCKER", reason: `Critical requirement: ${blockers[0]}.` };
+  if (stale) return { bucket: "TOO_OLD", reason: "Published more than 90 days ago and not verified active." };
+  if (technical.score >= 62 && capability < 62) return { bucket: "TOO_TECHNICAL", reason: technical.reason };
+  const discoveryNeeded = discovery.answeredCount < Math.min(3, discovery.targetCount);
+  if (interest <= 45 && (generalThemeConfidence >= 45 || discovery.confidence >= 45)) return { bucket: "NOT_INTERESTED", reason: "The work themes or role-specific responsibilities show limited attraction." };
+  if (interest >= 74 && capability < 70) return { bucket: "HIGH_INTEREST_STRETCH", reason: "High interest with capability gaps that require validation." };
+  if (capability >= 78 && interest < 62) return { bucket: "CAPABLE_NOT_COMPELLING", reason: "Strong capability evidence, but the role may not be energizing enough." };
+  if (discoveryNeeded && interest >= 58) return { bucket: "NEEDS_DISCOVERY", reason: "The general theme baseline is promising; specific responsibility mix is not yet tested." };
+  if (unknowns.length >= 2 && job.networkingStage === "NOT_STARTED") return { bucket: "NEEDS_NETWORKING", reason: `Resolve ${unknowns[0].toLowerCase()} before deciding.` };
+  if (recommendation === "PURSUE_NOW") return { bucket: "READY_TO_PURSUE", reason: "Strong combined fit with no major blocker." };
+  if (recommendation === "STRETCH") return { bucket: "HIGH_INTEREST_STRETCH", reason: "Attractive role with manageable developmental gaps." };
+  if (recommendation === "EXPLORE_NETWORKING") return { bucket: "NEEDS_NETWORKING", reason: "A conversation could resolve the most important uncertainty." };
+  if (recommendation === "DO_NOT_PURSUE") return { bucket: "NOT_INTERESTED", reason: "Current evidence does not justify prioritizing this opportunity." };
+  return { bucket: "NEEDS_DISCOVERY", reason: "More role-specific evidence is needed to rank this opportunity confidently." };
+}
+
 export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const fingerprint = buildFingerprint(job);
   const capabilitySkills = fingerprint.requirements.map((requirement) => capabilityStatus(job, requirement, profile));
   const capability = capabilityScore(capabilitySkills);
   const interestSignals = fingerprint.workSignals.map((signal) => interestSignalAssessment(signal, profile));
-  const baseInterest = calculateInterest(interestSignals, 0);
-  const discovery = synthesizeDiscovery(job, profile, fingerprint);
-  const discoveryWeight = discovery.answeredCount === 0
+  const broadInterest = calculateInterest(interestSignals, 0);
+  const preparedScenarios = generateRoleScenarios(job, fingerprint);
+  const generalTheme = generalThemeInterestForJob(job, fingerprint, profile, preparedScenarios);
+  const themeWeight = generalTheme.confidence >= 65 ? 0.78 : generalTheme.confidence >= 45 ? 0.62 : generalTheme.confidence >= 25 ? 0.40 : 0.20;
+  const baseInterest = clamp(Math.round(generalTheme.score * themeWeight + broadInterest * (1 - themeWeight)));
+  const discovery = synthesizeDiscovery(job, profile, fingerprint, preparedScenarios);
+  const roleWeight = discovery.answeredCount === 0
     ? 0
-    : Math.min(0.78, 0.18 + (discovery.answeredCount / Math.max(1, discovery.targetCount)) * 0.60);
-  const interest = clamp(Math.round(baseInterest * (1 - discoveryWeight) + discovery.score * discoveryWeight + job.interestAdjustment));
+    : Math.min(0.72, 0.22 + (discovery.answeredCount / Math.max(1, discovery.targetCount)) * 0.50);
+  const roleSpecificAdjustment = discovery.answeredCount
+    ? Math.max(-20, Math.min(20, Math.round((discovery.score - baseInterest) * roleWeight)))
+    : 0;
+  const interest = clamp(Math.round(baseInterest + roleSpecificAdjustment + job.interestAdjustment));
   const direction = directionAssessment(job, profile, fingerprint);
   const blockers = capabilitySkills.filter((item) => item.status === "CRITICAL_BLOCKER").map((item) => item.requirement.name);
   const unknowns = uniqueStrings([
@@ -522,6 +614,7 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   ]);
   const ageDays = jobAgeDays(job.datePosted);
   const viable = viability(job, blockers, ageDays);
+  const technical = technicalRoleAssessment(job, fingerprint);
   const stale = ageDays !== null && ageDays > 90 && !job.ageOverride && !job.verifiedActiveAt;
   const readiness = actionReadiness(job.networkingStage);
   const calculatedRecommendation = recommendationFor(capability, interest, direction.score, viable.score, blockers, unknowns, stale);
@@ -534,6 +627,9 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const confidence: Confidence = discovery.answeredCount >= 4
     ? (evidenceConfidence === "LOW" ? discoveryConfidence : discoveryConfidence === "HIGH" ? "HIGH" : evidenceConfidence)
     : evidenceConfidence;
+  const focus = determineFocusBucket(
+    job, capability, interest, recommendation, blockers, stale, technical, discovery, generalTheme.confidence, unknowns
+  );
 
   const positiveInterest = interestSignals.filter((item) => item.tone === "POSITIVE").sort((left, right) => right.preference.importance - left.preference.importance || right.alignmentScore - left.alignmentScore);
   const negativeInterest = interestSignals.filter((item) => item.tone === "NEGATIVE").sort((left, right) => right.preference.importance - left.preference.importance || left.alignmentScore - right.alignmentScore);
@@ -542,7 +638,7 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
 
   const reasons = uniqueStrings([
     `${capability}% Capability Fit: ${proven} proven and ${transferable} transferable requirements`,
-    `${interest}% Interest Fit${discovery.answeredCount ? `, informed by ${discovery.answeredCount} realistic scenario${discovery.answeredCount === 1 ? "" : "s"}` : positiveInterest[0] ? `, supported by ${positiveInterest[0].label.toLowerCase()}` : ""}`,
+    `${interest}% Interest Fit: ${baseInterest} general-theme baseline${roleSpecificAdjustment ? ` ${roleSpecificAdjustment > 0 ? "+" : ""}${roleSpecificAdjustment} role-specific adjustment` : ""}`,
     ...(discovery.energizers[0] ? [`Likely energizer: ${discovery.energizers[0]}`] : []),
     ...(discovery.drains[0] ? [`Potential drain: ${discovery.drains[0]}`] : []),
     `${direction.score}% Career Direction Fit${direction.matches.length ? ` with ${direction.matches[0]}` : ""}`,
@@ -575,6 +671,9 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
     interestSignals,
     interestScore: interest,
     baseInterestScore: baseInterest,
+    generalThemeScore: generalTheme.score,
+    generalThemeConfidence: generalTheme.confidence,
+    roleSpecificAdjustment,
     discovery,
     workContentScore: discovery.dimensions.find((item) => item.id === "WORK_CONTENT")?.score || 50,
     workDesignScore: discovery.dimensions.find((item) => item.id === "WORK_DESIGN")?.score || 50,
@@ -585,6 +684,10 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
     actionReadiness: readiness,
     ageDays,
     ageLabel: viable.label,
+    technicalIntensity: technical.score,
+    technicalReason: technical.reason,
+    focusBucket: focus.bucket,
+    focusReason: focus.reason,
     calculatedRecommendation,
     recommendation,
     confidence,

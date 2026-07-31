@@ -1,9 +1,9 @@
 {
   "name": "req-radar",
   "private": true,
-  "version": "3.0.1",
+  "version": "3.1.0",
   "type": "module",
-  "description": "ReqRadar v3.0: evidence-backed career portfolio intelligence for organizing job requisitions, comparing capability and interest fit, discovering role families, and prioritizing career experiments.",
+  "description": "ReqRadar v3.1: faster dual discovery, portfolio theme intelligence, and focus navigation for managing 20 to 50 career opportunities.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

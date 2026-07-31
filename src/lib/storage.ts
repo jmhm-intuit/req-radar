@@ -1,10 +1,13 @@
 import type {
   ActionStage,
   AppSettings,
+  FocusBucket,
+  FocusBucketOverride,
   JobReq,
   JobStatus,
   ManualPriority,
   NetworkingStage,
+  PortfolioGroupBy,
   ParsedBackup,
   RecommendationOverride,
   ReqRadarBackup,
@@ -49,12 +52,23 @@ const VALID_ACTIONS = new Set<ActionStage>(["REVIEW", "VALIDATE_ROLE", "IDENTIFY
 const VALID_PRIORITY = new Set<ManualPriority>(["HIGH", "NORMAL", "LOW", "ARCHIVE"]);
 const VALID_RECOMMENDATION = new Set<RecommendationOverride>(["AUTO", "PURSUE_NOW", "EXPLORE_NETWORKING", "STRETCH", "LOW_PRIORITY", "DO_NOT_PURSUE"]);
 const VALID_SKILL_STATUS = new Set<SkillMatchStatus>(["PROVEN", "TRANSFERABLE", "DEVELOPMENT_GAP", "CRITICAL_BLOCKER", "UNKNOWN", "NOT_RELEVANT"]);
+const VALID_FOCUS_BUCKETS = new Set<FocusBucket>([
+  "READY_TO_PURSUE", "NEEDS_DISCOVERY", "NEEDS_NETWORKING", "HIGH_INTEREST_STRETCH",
+  "CAPABLE_NOT_COMPELLING", "TOO_TECHNICAL", "NOT_INTERESTED", "TOO_OLD",
+  "CRITICAL_BLOCKER", "INACTIVE"
+]);
+const VALID_GROUP_BY = new Set<PortfolioGroupBy>([
+  "FOCUS_BUCKET", "ROLE_FAMILY", "STATUS", "POSTING_AGE", "INTEREST_BAND", "CAPABILITY_BAND", "NETWORKING_STAGE"
+]);
 
 export const DEFAULT_SETTINGS: AppSettings = {
   recruitingPortalUrl: "",
   lastExportAt: "",
   hiddenStatuses: ["NOT_PURSUING", "CLOSED"],
+  hiddenFocusBuckets: [],
   preferredView: "PORTFOLIO",
+  portfolioGroupBy: "FOCUS_BUCKET",
+  collapsedGroups: ["TOO_TECHNICAL", "NOT_INTERESTED", "TOO_OLD", "CRITICAL_BLOCKER", "INACTIVE"],
   updatedAt: ""
 };
 
@@ -102,6 +116,12 @@ function normalizeRecommendation(value: unknown): RecommendationOverride {
     DO_NOT_PURSUE: "DO_NOT_PURSUE"
   };
   return typeof value === "string" ? legacy[value] || "AUTO" : "AUTO";
+}
+
+function normalizeFocusBucketOverride(value: unknown): FocusBucketOverride {
+  if (value === "AUTO") return "AUTO";
+  if (typeof value === "string" && VALID_FOCUS_BUCKETS.has(value as FocusBucket)) return value as FocusBucket;
+  return "AUTO";
 }
 
 function normalizeSkillStatus(value: unknown): SkillMatchStatus | null {
@@ -175,6 +195,7 @@ export function normalizeJobReq(value: unknown): JobReq | null {
     recommendationOverride: normalizeRecommendation(job.recommendationOverride),
     interestAdjustment,
     groupOverride: stringValue(job.groupOverride),
+    focusBucketOverride: normalizeFocusBucketOverride(job.focusBucketOverride),
     fitNotes: stringValue(job.fitNotes),
     fitDiscovery: normalizeDiscoverySession(job.fitDiscovery),
     createdAt: stringValue(job.createdAt) || now,
@@ -190,7 +211,10 @@ function normalizeSettings(value: unknown): AppSettings {
     recruitingPortalUrl: stringValue(settings.recruitingPortalUrl),
     lastExportAt: stringValue(settings.lastExportAt),
     hiddenStatuses: stringArray(settings.hiddenStatuses).filter((status): status is JobStatus => VALID_STATUSES.has(status as JobStatus)),
+    hiddenFocusBuckets: stringArray(settings.hiddenFocusBuckets).filter((bucket): bucket is FocusBucket => VALID_FOCUS_BUCKETS.has(bucket as FocusBucket)),
     preferredView: settings.preferredView === "ROLES" ? "ROLES" : "PORTFOLIO",
+    portfolioGroupBy: typeof settings.portfolioGroupBy === "string" && VALID_GROUP_BY.has(settings.portfolioGroupBy as PortfolioGroupBy) ? settings.portfolioGroupBy as PortfolioGroupBy : "FOCUS_BUCKET",
+    collapsedGroups: stringArray(settings.collapsedGroups),
     updatedAt: stringValue(settings.updatedAt)
   };
 }
@@ -266,7 +290,7 @@ export function saveProfile(profile: UserProfile): StorageWriteResult {
 export function buildExportPayload(jobs: JobReq[], settings: AppSettings, profile: UserProfile, exportedAt = new Date().toISOString()): ReqRadarBackup {
   return {
     app: "ReqRadar",
-    schemaVersion: 5,
+    schemaVersion: 6,
     appVersion: __APP_VERSION__,
     exportedAt,
     jobs,
@@ -328,7 +352,7 @@ export function downloadJson(payload: ReqRadarBackup): void {
   const link = document.createElement("a");
   const date = payload.exportedAt.slice(0, 10);
   link.href = url;
-  link.download = `req-radar-v3-backup-${date}.json`;
+  link.download = `req-radar-v3.1-backup-${date}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();

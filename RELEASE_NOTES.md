@@ -1,76 +1,43 @@
-# ReqRadar v3.0.1 — Startup Reliability Hotfix
+# ReqRadar v3.1.0 — Dual Discovery & Portfolio Navigator
 
-## White-screen resolution
+## Faster assessment structure
 
-- Moved portfolio assessment work out of the first synchronous render and into short asynchronous batches.
-- Reused each job fingerprint instead of rebuilding it repeatedly for every comparison.
-- Deferred pairwise comparison work until the Similar Roles workspace is opened.
-- Lazy-loaded PDF.js and its worker only when a PDF is selected.
-- Added a nonwhite startup screen with progress messaging before React mounts.
-- Added a top-level recovery screen for unexpected runtime errors.
-- Added guarded local-storage writes so quota or browser-storage failures show an actionable warning rather than unmounting the app.
-- Added recovery export and an explicit option to reset only ReqRadar browser data.
+- Replaced `updatedAt`-based assessment invalidation with content and profile signatures.
+- Status, pinning, notes, links, and other workflow-only changes reuse cached analysis.
+- Debounced browser-storage writes for jobs, profile, and settings.
+- Preserved cached results while stale roles refresh in short asynchronous batches.
+- Reused prepared role scenarios across the General Theme baseline and Role Discovery synthesis.
+- Kept similar-role comparisons lazy so they run only when opened.
 
-## Compatibility
+## Layer 1: General Theme Discovery
 
-- Preserves the v3.0 Fit Discovery Studio, all v2/v3 migrations, and the existing local-storage keys.
-- Existing jobs, resume evidence, preferences, scenario responses, links, notes, rankings, and backups remain available.
-- No user data is included in this deployment package.
+- Detects common work themes across the current opportunity portfolio.
+- Grounds each theme in representative responsibilities from multiple uploaded job descriptions.
+- Captures interest reaction, preferred frequency, confidence, contextual conditions, and reflection.
+- Produces a reusable General Theme Profile and Portfolio Theme Alignment score.
+- Keeps AI/technology adoption separate from hands-on technical execution.
 
----
+## Layer 2: Role-Specific Discovery
 
-# ReqRadar v3.0.0 — Fit Discovery Studio
+- Uses the General Theme Profile as the baseline for every role.
+- Shows a transparent role-specific adjustment from -20 to +20.
+- Limits normal role sessions to the three to five questions most likely to change the decision.
+- Keeps role responses attached to that role rather than automatically rewriting global preferences.
+- Preserves Role Reality Preview, plausible week, scenario reflection, and networking hypotheses.
 
-## A deeper self-discovery experience
+## Focus Navigator
 
-- Replaced the fixed, overlapping interest questionnaire with adaptive, job-specific scenarios.
-- Added a dedicated Fit Discovery workspace and a full-screen discovery studio.
-- Added question de-duplication through structured facets and one targeted scenario per facet.
-- Added a visible “This feels repetitive” action that explains the distinction or lets the applicant skip it.
-
-## Role Reality Preview
-
-- Translates each job description into recurring responsibilities, key stakeholders, impact modes, likely work rhythm, and success signals.
-- Separates **stated**, **strongly implied**, **possible interpretation**, and **unknown** information.
-- Creates an evidence-linked “plausible week in the role” without presenting assumptions as facts.
-- Preserves important unknowns rather than silently converting them into neutral scores.
-
-## Scenario-based reflection
-
-- Generates six to eight scenarios that reflect the actual role fingerprint.
-- Captures whether work would be energizing, comfortable, tolerable, draining, avoided, or context-dependent.
-- Captures desired frequency and confidence based on direct experience, related experience, estimate, or uncertainty.
-- Supports conditional preferences such as team maturity, decision authority, manager quality, frequency, scale, and amount of administration.
-- Connects reactions to peak career experiences and written reflection.
-
-## More realistic leadership discovery
-
-- Separates direct people management from influence without authority.
-- Distinguishes setting direction, coaching, delegation, performance management, hiring/team design, people administration, executive influence, peer alignment, and organizational communication.
-- Allows an applicant to discover that some aspects of leadership are energizing while others are draining or conditional.
-
-## Fit synthesis and recommendations
-
-- Adds Work Content, Work Design, and Leadership/Social Fit alongside Capability and Career Direction.
-- Shows energizers, drains, conditions, contradictions, confidence, and unresolved questions.
-- Blends scenario evidence into Interest Fit progressively; sparse discovery evidence does not overpower the job-description signals.
-- Keeps recommendation, practical viability, user status, and next action separate.
-
-## Networking as a learning loop
-
-- Generates a job-specific hypothesis to test.
-- Converts unknowns into targeted networking questions.
-- Records whether an assumption was confirmed, disproved, nuanced, or remains unknown.
-- Records whether interest increased, stayed the same, or decreased after learning more.
-
-## Career profile evolution
-
-- Adds an emerging preference profile grouped into energizers, conditional preferences, likely drains, and areas that need more evidence.
-- Migrates Version 2 abstract interview answers as tentative rather than confirmed preferences.
-- Updates the career profile gradually from scenario evidence instead of rewriting it after a single answer.
+- Adds explainable smart focus buckets for navigating 20–50 opportunities.
+- Adds quick views for Focus now, Needs discovery, Needs networking, Too old, Too technical, Not interested, and All roles.
+- Adds grouping by focus bucket, role family, status, posting age, Interest Fit, Capability Fit, and networking stage.
+- Collapses lower-priority categories by default.
+- Renders ten roles per group initially with progressive expansion.
+- Separates technical capability gaps from low interest in hands-on technical work.
+- Supports manual focus-bucket overrides from the role detail panel.
 
 ## Compatibility
 
-- Preserves jobs, resume evidence, skill overrides, role groups, networking notes, ranking controls, statuses, and manual sync.
-- Imports previous ReqRadar backups and normalizes missing Version 3 discovery fields.
-- Backup schema v5 includes Fit Discovery sessions and the emerging preference profile.
+- Preserves existing jobs, resume evidence, skills, role discovery sessions, rankings, statuses, links, notes, and networking data.
+- Imports backups from earlier ReqRadar versions and normalizes the new settings and focus fields.
+- Backup schema v6 includes General Theme preferences and Focus Navigator settings.
+- No user resume or internal job description is included in the deployment package.

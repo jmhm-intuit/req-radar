@@ -14,6 +14,7 @@ import type {
   InterestDimension,
   PeakExperience,
   PreferenceScore,
+  ScenarioFrequency,
   ProfileSkill,
   SkillProficiency,
   UserProfile
@@ -66,6 +67,15 @@ export function createDefaultProfile(): UserProfile {
 function structuredCloneSafe<T>(value: T): T {
   if (typeof structuredClone === "function") return structuredClone(value);
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+
+function preferredFrequencyForScore(score: PreferenceScore): ScenarioFrequency {
+  if (score >= 2) return "MAJOR";
+  if (score === 1) return "RECURRING";
+  if (score === 0) return "OCCASIONAL";
+  if (score === -1) return "NECESSARY_ONLY";
+  return "NOT_IDEAL";
 }
 
 function confidenceFromEvidence(count: number): Confidence {
@@ -337,6 +347,7 @@ function legacyAnswersToDiscoveryPreferences(answers: Record<string, string>): P
         detail: "Imported as tentative. Validate this preference through realistic job scenarios.",
         createdAt: now
       }],
+      preferredFrequency: preferredFrequencyForScore(choosePreferenceScore(values)),
       updatedAt: now
     } satisfies PreferenceFacet;
   });
@@ -373,6 +384,9 @@ function normalizeDiscoveryPreferences(value: unknown, answers: Record<string, s
           createdAt: typeof entry.createdAt === "string" ? entry.createdAt : ""
         }];
       }) : [],
+      preferredFrequency: raw.preferredFrequency === "MAJOR" || raw.preferredFrequency === "RECURRING" || raw.preferredFrequency === "OCCASIONAL" || raw.preferredFrequency === "NECESSARY_ONLY" || raw.preferredFrequency === "NOT_IDEAL"
+        ? raw.preferredFrequency
+        : preferredFrequencyForScore(raw.preference === -2 || raw.preference === -1 || raw.preference === 0 || raw.preference === 1 || raw.preference === 2 ? raw.preference : 0),
       updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : ""
     } satisfies PreferenceFacet];
   });

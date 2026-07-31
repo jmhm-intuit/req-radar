@@ -30,7 +30,6 @@ import {
 import {
   buildRoleRealityPreview,
   generateRoleScenarios,
-  integrateScenarioResponse,
   normalizeDiscoverySession,
   synthesizeDiscovery
 } from "../lib/discovery";
@@ -54,7 +53,6 @@ interface FitDiscoveryStudioProps {
   assessment: JobAssessment;
   profile: UserProfile;
   onUpdateJob: (changes: Partial<JobReq>) => void;
-  onUpdateProfile: (profile: UserProfile) => void;
   onClose: () => void;
   notify: (title: string, message: string, kind?: "success" | "error" | "info") => void;
 }
@@ -109,7 +107,7 @@ function DiscoveryMetric({ label, value, confidence, detail }: { label: string; 
   return <article className={`discovery-metric ${tone}`}><div><strong>{value}</strong><span>{label}</span></div><p>{detail}</p><small>{confidence ? `${confidence}% evidence confidence` : "Not assessed yet"}</small></article>;
 }
 
-export function FitDiscoveryStudio({ job, assessment, profile, onUpdateJob, onUpdateProfile, onClose, notify }: FitDiscoveryStudioProps) {
+export function FitDiscoveryStudio({ job, assessment, profile, onUpdateJob, onClose, notify }: FitDiscoveryStudioProps) {
   const session = useMemo(() => normalizeDiscoverySession(job.fitDiscovery), [job.fitDiscovery]);
   const scenarios = useMemo(() => generateRoleScenarios(job, assessment.fingerprint), [job, assessment.fingerprint]);
   const preview = useMemo(() => buildRoleRealityPreview(job, assessment.fingerprint), [job, assessment.fingerprint]);
@@ -170,8 +168,7 @@ export function FitDiscoveryStudio({ job, assessment, profile, onUpdateJob, onUp
       unresolvedQuestions: synthesis.unresolvedQuestions
     });
     onUpdateJob({ fitDiscovery: nextSession });
-    onUpdateProfile(integrateScenarioResponse(profile, job, activeScenario, response));
-    notify("Reflection saved", `${facetDefinition(activeScenario.facet).label} was added to your emerging preference profile.`, "success");
+    notify("Role reflection saved", `${facetDefinition(activeScenario.facet).label} will adjust this opportunity only. General preferences are updated in General Theme Discovery.`, "success");
 
     const nextIndex = scenarios.findIndex((scenario, index) => index > scenarioIndex && !responses[scenario.id] && !session.skippedScenarioIds.includes(scenario.id));
     if (nextIndex >= 0) setScenarioIndex(nextIndex);
@@ -221,6 +218,12 @@ export function FitDiscoveryStudio({ job, assessment, profile, onUpdateJob, onUp
     <header className="discovery-header"><div><span className="eyebrow">Fit Discovery Studio · {job.jobId || "No Job ID"}</span><h2>{job.title}</h2><p>Understand what this role may actually feel like, then use your own experience to judge the opportunity.</p></div><button className="icon-btn" onClick={onClose}><X /></button></header>
     <nav className="discovery-steps">{stageSteps.map((step, index) => { const Icon = step.icon; return <button key={step.id} className={stage === step.id ? "active" : ""} onClick={() => setStage(step.id)}><span>{session.status === "COMPLETED" && step.id === "SCENARIOS" ? <Check /> : index + 1}</span><Icon /><b>{step.label}</b></button>; })}</nav>
 
+    <section className="role-baseline-strip">
+      <div><span>General theme baseline</span><strong>{assessment.baseInterestScore}</strong><small>{assessment.generalThemeConfidence}% confidence</small></div>
+      <div className={assessment.roleSpecificAdjustment > 0 ? "positive" : assessment.roleSpecificAdjustment < 0 ? "negative" : "neutral"}><span>Role-specific adjustment</span><strong>{assessment.roleSpecificAdjustment > 0 ? "+" : ""}{assessment.roleSpecificAdjustment}</strong><small>{assessment.discovery.answeredCount}/{assessment.discovery.targetCount} scenarios</small></div>
+      <div><span>Current Interest Fit</span><strong>{assessment.interestScore}</strong><small>baseline + role evidence</small></div>
+    </section>
+
     <div className="discovery-body">
       {stage === "REALITY" && <div className="reality-preview">
         <section className="reality-hero"><div><span className="eyebrow">A realistic preview before you rate the role</span><h3>What this job may feel like week to week</h3><p>Statements are labeled so facts, strong implications, and interpretations are not confused.</p></div><div className="reality-summary"><span><b>{preview.responsibilities.length}</b> recurring responsibilities</span><span><b>{preview.unknowns.length}</b> important unknowns</span><span><b>{scenarios.length}</b> targeted scenarios</span></div></section>
@@ -259,7 +262,7 @@ export function FitDiscoveryStudio({ job, assessment, profile, onUpdateJob, onUp
       </div>}
 
       {stage === "SYNTHESIS" && <div className="synthesis-stage">
-        <section className="synthesis-hero"><div><span className="eyebrow">Evidence-backed fit synthesis</span><h3>{synthesis.answeredCount ? `${synthesis.answeredCount} scenarios reveal a more nuanced picture` : "Complete scenarios to personalize the fit"}</h3><p>Capability, attraction, work design, leadership mode, and career direction remain separate.</p></div><div className="synthesis-score"><strong>{assessment.interestScore}</strong><span>Interest Fit</span><small>{synthesis.confidence}% discovery confidence</small></div></section>
+        <section className="synthesis-hero"><div><span className="eyebrow">Evidence-backed fit synthesis</span><h3>{synthesis.answeredCount ? `${synthesis.answeredCount} scenarios reveal a more nuanced picture` : "Complete scenarios to personalize the fit"}</h3><p>Your general themes establish the baseline. These role-specific responsibilities adjust only this opportunity.</p></div><div className="synthesis-score"><strong>{assessment.interestScore}</strong><span>Interest Fit</span><small>{synthesis.confidence}% discovery confidence</small></div></section>
         <div className="five-fit-grid"><DiscoveryMetric label="Work content" value={assessment.workContentScore} confidence={synthesis.dimensions.find((item) => item.id === "WORK_CONTENT")?.confidence || 0} detail="Do the actual problems and responsibilities attract you?" /><DiscoveryMetric label="Work design" value={assessment.workDesignScore} confidence={synthesis.dimensions.find((item) => item.id === "WORK_DESIGN")?.confidence || 0} detail="Do autonomy, ambiguity, variety, and cadence fit?" /><DiscoveryMetric label="Leadership & social" value={assessment.leadershipSocialScore} confidence={synthesis.dimensions.find((item) => item.id === "LEADERSHIP_SOCIAL")?.confidence || 0} detail="Does the leadership mode and stakeholder environment fit?" /><DiscoveryMetric label="Career direction" value={assessment.directionScore} confidence={profile.careerDirections.length ? 70 : 20} detail="Does the role move toward an identity you want to test?" /><DiscoveryMetric label="Capability" value={assessment.capabilityScore} confidence={assessment.confidence === "HIGH" ? 85 : assessment.confidence === "MEDIUM" ? 60 : 35} detail="Does your evidence demonstrate the required capabilities?" /></div>
 
         <div className="synthesis-insights"><article className="positive"><h3>Likely energizers</h3>{synthesis.energizers.length ? <ul>{synthesis.energizers.map((item) => <li key={item}><Check /> {item}</li>)}</ul> : <p>More scenario evidence is needed.</p>}</article><article className="negative"><h3>Potential drains</h3>{synthesis.drains.length ? <ul>{synthesis.drains.map((item) => <li key={item}><AlertCircle /> {item}</li>)}</ul> : <p>No strong drain has been identified yet.</p>}</article><article className="conditional"><h3>Conditions that matter</h3>{synthesis.conditions.length ? <ul>{synthesis.conditions.map((item) => <li key={item}><HelpCircle /> {item}</li>)}</ul> : <p>No conditional preference has been recorded yet.</p>}</article></div>

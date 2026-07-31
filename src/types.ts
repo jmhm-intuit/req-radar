@@ -119,6 +119,29 @@ export type Recommendation =
 export type RecommendationOverride = "AUTO" | Recommendation;
 export type ManualPriority = "HIGH" | "NORMAL" | "LOW" | "ARCHIVE";
 
+export type FocusBucket =
+  | "READY_TO_PURSUE"
+  | "NEEDS_DISCOVERY"
+  | "NEEDS_NETWORKING"
+  | "HIGH_INTEREST_STRETCH"
+  | "CAPABLE_NOT_COMPELLING"
+  | "TOO_TECHNICAL"
+  | "NOT_INTERESTED"
+  | "TOO_OLD"
+  | "CRITICAL_BLOCKER"
+  | "INACTIVE";
+
+export type FocusBucketOverride = "AUTO" | FocusBucket;
+
+export type PortfolioGroupBy =
+  | "FOCUS_BUCKET"
+  | "ROLE_FAMILY"
+  | "STATUS"
+  | "POSTING_AGE"
+  | "INTEREST_BAND"
+  | "CAPABILITY_BAND"
+  | "NETWORKING_STAGE";
+
 export interface EvidenceItem {
   id: string;
   text: string;
@@ -148,7 +171,7 @@ export interface CareerPreference {
 
 export interface PreferenceFacetEvidence {
   id: string;
-  sourceType: "LEGACY_INTERVIEW" | "SCENARIO" | "PEAK_EXPERIENCE" | "MANUAL";
+  sourceType: "LEGACY_INTERVIEW" | "SCENARIO" | "GENERAL_THEME" | "PEAK_EXPERIENCE" | "MANUAL";
   sourceLabel: string;
   detail: string;
   jobId?: string;
@@ -167,6 +190,7 @@ export interface PreferenceFacet {
   status: PreferenceFacetStatus;
   conditions: string[];
   evidence: PreferenceFacetEvidence[];
+  preferredFrequency: ScenarioFrequency;
   updatedAt: string;
 }
 
@@ -335,6 +359,7 @@ export interface JobReq {
   recommendationOverride: RecommendationOverride;
   interestAdjustment: number;
   groupOverride: string;
+  focusBucketOverride: FocusBucketOverride;
   fitNotes: string;
   fitDiscovery: FitDiscoverySession;
   createdAt: string;
@@ -418,6 +443,9 @@ export interface JobAssessment {
   interestSignals: InterestSignalAssessment[];
   interestScore: number;
   baseInterestScore: number;
+  generalThemeScore: number;
+  generalThemeConfidence: number;
+  roleSpecificAdjustment: number;
   discovery: DiscoverySynthesis;
   workContentScore: number;
   workDesignScore: number;
@@ -428,6 +456,10 @@ export interface JobAssessment {
   actionReadiness: number;
   ageDays: number | null;
   ageLabel: string;
+  technicalIntensity: number;
+  technicalReason: string;
+  focusBucket: FocusBucket;
+  focusReason: string;
   calculatedRecommendation: Recommendation;
   recommendation: Recommendation;
   confidence: Confidence;
@@ -473,11 +505,47 @@ export interface RoleGroupSummary {
   topJobId: string;
 }
 
+export interface PortfolioThemeInsight {
+  facet: DiscoveryFacet;
+  label: string;
+  shortLabel: string;
+  family: "WORK_CONTENT" | "WORK_DESIGN" | "LEADERSHIP_SOCIAL";
+  description: string;
+  roleCount: number;
+  jobIds: string[];
+  representativeResponsibilities: string[];
+  preference: PreferenceScore;
+  confidence: number;
+  status: PreferenceFacetStatus;
+  conditions: string[];
+  preferredFrequency: ScenarioFrequency;
+  alignmentScore: number;
+  needsDiscovery: boolean;
+}
+
+export interface ThemeDiscoveryResponse {
+  reaction: ScenarioReaction;
+  preferredFrequency: ScenarioFrequency;
+  confidence: ScenarioConfidence;
+  conditions: string[];
+  reflection: string;
+}
+
+export interface PortfolioThemeAlignment {
+  score: number;
+  confidence: number;
+  assessedThemes: number;
+  totalThemes: number;
+}
+
 export interface AppSettings {
   recruitingPortalUrl: string;
   lastExportAt: string;
   hiddenStatuses: JobStatus[];
+  hiddenFocusBuckets: FocusBucket[];
   preferredView: "PORTFOLIO" | "ROLES";
+  portfolioGroupBy: PortfolioGroupBy;
+  collapsedGroups: string[];
   updatedAt: string;
 }
 

@@ -36,7 +36,7 @@ import {
   uniqueStrings
 } from "./text";
 
-const TARGET_SCENARIOS = 8;
+const TARGET_SCENARIOS = 5;
 
 const CONFIDENCE_WEIGHT: Record<ScenarioConfidence, number> = {
   DIRECT_EXPERIENCE: 1,
@@ -447,8 +447,8 @@ function contradictionMessages(profile: UserProfile, responses: ScenarioResponse
   });
 }
 
-export function synthesizeDiscovery(job: JobReq, profile: UserProfile, fingerprint: JobFingerprint): DiscoverySynthesis {
-  const scenarios = generateRoleScenarios(job, fingerprint);
+export function synthesizeDiscovery(job: JobReq, profile: UserProfile, fingerprint: JobFingerprint, preparedScenarios?: RoleScenario[]): DiscoverySynthesis {
+  const scenarios = preparedScenarios || generateRoleScenarios(job, fingerprint);
   const session = normalizeDiscoverySession(job.fitDiscovery);
   const responses = Object.values(session.responses).filter((response) => !response.markedRepetitive);
   const workContent = dimensionScore("WORK_CONTENT", "Work-content attraction", scenarios, responses);
@@ -560,6 +560,7 @@ export function integrateScenarioResponse(
     status: response.reaction === "DEPENDS" ? "CONDITIONAL" : response.confidence === "DIRECT_EXPERIENCE" ? "CONFIRMED" : existing?.status === "CONFIRMED" ? "CONFIRMED" : "TENTATIVE",
     conditions: uniqueStrings([...(existing?.conditions || []), ...response.conditions]),
     evidence: [...(existing?.evidence || []).filter((item) => item.scenarioId !== scenario.id || item.jobId !== job.id), evidence].slice(-10),
+    preferredFrequency: response.preferredFrequency,
     updatedAt: new Date().toISOString()
   };
 
