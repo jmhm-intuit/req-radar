@@ -1,72 +1,101 @@
-# ReqRadar v3.1.0
+# ReqRadar v3.2.0
 
-ReqRadar is a local-first career portfolio and opportunity-discovery application designed for GitHub Pages.
+ReqRadar is a local-first career opportunity intelligence application designed for GitHub Pages. It helps a candidate understand what each role actually requires, connect those requirements to evidence from past experience, and prioritize a portfolio of 15–50 opportunities without reducing every decision to one opaque score.
 
-Version 3.1 introduces **Dual Discovery & Portfolio Navigator**: a faster structure that learns broad work preferences once, reuses them across the portfolio, and asks role-specific questions only when a responsibility or uncertainty could materially change the decision.
+Version 3.2 introduces the **Evidence-Based Fit Navigator**.
 
-## What is new in v3.1.0
+## What is new in v3.2.0
 
-### General Theme Discovery
+### Fit Signature
 
-ReqRadar now identifies responsibilities and work patterns that recur across the uploaded opportunities. The applicant can reflect on common themes using real examples from the current job descriptions, including:
+Every role now receives six separate outputs:
 
-- Strategy and problem framing
-- Transformation and operating-model design
-- Executive influence
-- Direct people leadership
-- Building systems versus running recurring cadence
-- Analytical intensity
-- AI and technology adoption
-- Hands-on technical execution
+- **Scope** — In scope now, Credible stretch, Out of scope, or Insufficient evidence
+- **Readiness** — how well reviewed experience evidence supports the role's day-one demands
+- **Attraction** — how appealing the recurring work appears
+- **Career direction** — whether the role supports a desired future direction
+- **Viability** — whether the opportunity is current and practical
+- **Evidence confidence** — how reliable the assessment is
 
-Each theme records interest, confidence, preferred frequency, contextual conditions, and supporting reflection. These answers form a reusable baseline Interest Fit across relevant roles.
+The app also provides an action recommendation: Pursue, Explore, Hold, Do not pursue, or Verify active.
 
-### Role-Specific Discovery
+### Candidate Evidence Graph
 
-Opening one opportunity starts a separate, shorter discovery layer. The baseline from General Theme Discovery is shown beside a bounded role-specific adjustment. The applicant sees the responsibilities, work mix, leadership model, and uncertainties that are distinctive to that role.
+Resume skills are organized into competency families and connected to specific evidence. Each competency can include:
 
-Role-specific answers remain attached to the role. They no longer rewrite the global preference profile after every response.
+- proficiency and confidence
+- supporting resume excerpts
+- manually added accomplishments
+- candidate confirmation or exclusion
+- multiple evidence items from different experiences
 
-### Focus Navigator for 20–50 opportunities
+Missing resume evidence is labeled **Not demonstrated in the current profile**, rather than claiming the candidate does not possess the capability.
 
-The opportunity inventory is organized into explainable focus buckets:
+### Job Success Profile
 
-- Ready to pursue
-- Needs role discovery
-- Needs networking
-- High-interest stretch
-- Capable but not compelling
-- Too technical right now
-- Not interested enough
-- Too old — verify active
+Each job description is translated into:
+
+- expected outcomes
+- recurring responsibilities
+- competency demands
+- work context and scope
+- technical mode
+- a visual workprint showing the likely balance of work
+- explicit unknowns that should be validated
+
+### Match Ledger
+
+Every material job requirement is paired with candidate evidence and classified as:
+
+- Proven
+- Transferable
+- Partial
+- Developmental gap
+- Not demonstrated
 - Critical blocker
-- Not pursuing / closed
+- Unknown
+- Not relevant
 
-The list can also be grouped by role family, status, posting age, Interest Fit, Capability Fit, or networking stage. Lower-priority groups are collapsed by default and each group initially renders only ten roles.
+The ledger shows the posting evidence, expected proficiency, centrality, learnability, candidate evidence, confidence, and explanation. Every classification can be corrected manually.
 
-### Performance improvements
+### Technical-scope clarity
 
-- Analytical cache keys now use job content and relevant profile evidence rather than `updatedAt`.
-- Status, notes, pinning, and other workflow changes no longer force a full portfolio reassessment.
-- Job, profile, and settings writes are debounced rather than saving on every keystroke.
-- Cached assessments remain visible while only stale jobs refresh in small asynchronous batches.
-- Role scenarios are generated once per job assessment and reused by the interest layers.
-- Similar-role comparisons remain deferred until the comparison workspace is opened.
+ReqRadar now distinguishes:
 
-## Core capabilities
+- a **technical environment**
+- **technical fluency and decision-making**
+- **hands-on technical execution**
 
-- Upload multiple PDF/TXT job requisitions in one batch.
-- Upload a resume and create evidence-backed skills with supporting excerpts.
-- Compare Capability Fit, Interest Fit, Career Direction Fit, and Practical Viability separately.
-- Group roles by recurring themes and role families.
-- Filter, rank, pin, and change job status from the main inventory.
-- Record networking hypotheses, contacts, and learnings.
-- Export/import the complete portfolio as JSON for manual device sync.
-- Store recruiting-page and optional job-requisition links.
+A role is marked technically out of scope only when hands-on execution is central and comparable evidence is not demonstrated. Working with engineering or AI teams is not automatically treated as a technical blocker.
+
+### Portfolio views for 15–50 roles
+
+The primary two-by-two matrix has been replaced by more useful views:
+
+- **Fit Portfolio** — a ranked Fit Signature table with scope and action filters
+- **Competency Heatmap** — family-level comparison with drill-down to requirements and evidence
+- **Portfolio Demand** — recurring market demands versus the candidate's evidence coverage
+- **Compare Roles** — side-by-side comparison of two to five opportunities using fit signatures, workprints, responsibilities, common strengths, differentiators, and gaps
+
+### Ranking quality
+
+The app applies gates before ranking. Mandatory credentials and central hands-on technical blockers cannot be offset by a high interest score. It also indicates whether a recommendation is robust or sensitive to how readiness, interest, career direction, and viability are weighted.
+
+## Existing capabilities retained
+
+- Batch upload of PDF and TXT job requisitions
+- Resume upload and evidence extraction
+- General Theme Discovery and job-specific Fit Discovery
+- Status, pinning, manual priority, score adjustments, and recommendation overrides
+- Role grouping, networking notes, and learning hypotheses
+- Duplicate detection
+- JSON backup export/import for manual device sync
+- Recruiting-page and job-requisition links
+- Visible app version
 
 ## Privacy model
 
-ReqRadar runs entirely in the browser. Resume text, job descriptions, preferences, discovery responses, and notes are stored locally; they are not committed to GitHub or sent to a server. Use the JSON backup to move data between devices.
+ReqRadar runs entirely in the browser. Resume text, job descriptions, notes, preferences, and assessments are stored locally on the current device. They are not committed to GitHub or sent to a server. Use the JSON backup to move data between devices.
 
 ## Local development
 
@@ -83,4 +112,4 @@ npm run build
 
 ## GitHub Pages
 
-The included GitHub Actions workflow installs dependencies, builds `dist/`, and deploys after a push to `main`. Vite uses `/req-radar/` as the production base path.
+The included workflow installs dependencies, builds `dist/`, and publishes it after a push to `main`. Vite uses `/req-radar/` as the production base path.

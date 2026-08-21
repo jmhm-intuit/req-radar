@@ -15,6 +15,7 @@ function compactHash(value: string): string {
 
 export function jobAnalysisSignature(job: JobReq): string {
   return compactHash(JSON.stringify({
+    engineVersion: "3.2.0",
     title: job.title,
     normalizedTitle: job.normalizedTitle,
     category: job.category,
@@ -49,6 +50,7 @@ export function jobAnalysisSignature(job: JobReq): string {
 
 export function profileAnalysisSignature(profile: UserProfile): string {
   return compactHash(JSON.stringify({
+    engineVersion: "3.2.0",
     skills: profile.skills.map((skill) => ({
       name: skill.normalizedName,
       proficiency: skill.proficiency,

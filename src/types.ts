@@ -104,10 +104,39 @@ export type RequirementImportance = "MUST" | "GENERAL" | "PREFERRED";
 export type SkillMatchStatus =
   | "PROVEN"
   | "TRANSFERABLE"
+  | "PARTIAL"
   | "DEVELOPMENT_GAP"
+  | "NOT_DEMONSTRATED"
   | "CRITICAL_BLOCKER"
   | "UNKNOWN"
   | "NOT_RELEVANT";
+
+export type CompetencyFamily =
+  | "STRATEGY"
+  | "LEADERSHIP_INFLUENCE"
+  | "OPERATIONS_TRANSFORMATION"
+  | "ANALYTICS_FINANCE"
+  | "PRODUCT_CUSTOMER"
+  | "FUNCTIONAL_DOMAIN"
+  | "TECHNICAL"
+  | "SCOPE"
+  | "CREDENTIAL";
+
+export type RequirementCriticality =
+  | "HARD_GATE"
+  | "DAY_ONE_ESSENTIAL"
+  | "CORE_DEVELOPABLE"
+  | "SUPPORTING"
+  | "PREFERRED"
+  | "CONTEXT"
+  | "UNCLEAR";
+
+export type ExpectedProficiency = "FOUNDATIONAL" | "WORKING" | "ADVANCED" | "EXPERT" | "UNKNOWN";
+export type Learnability = "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
+export type TechnicalMode = "NON_TECHNICAL" | "TECHNICAL_ENVIRONMENT" | "TECHNICAL_FLUENCY" | "HANDS_ON_EXECUTION" | "UNKNOWN";
+export type ScopeStatus = "IN_SCOPE_NOW" | "CREDIBLE_STRETCH" | "OUT_OF_SCOPE" | "INSUFFICIENT_EVIDENCE";
+export type DecisionAction = "PURSUE" | "EXPLORE" | "HOLD" | "DO_NOT_PURSUE" | "VERIFY_ACTIVE";
+export type RankingRobustness = "ROBUST" | "MODERATE" | "SENSITIVE";
 
 export type Recommendation =
   | "PURSUE_NOW"
@@ -389,9 +418,16 @@ export interface JobRequirement {
   id: string;
   name: string;
   category: SkillCategory;
+  family: CompetencyFamily;
   importance: RequirementImportance;
+  criticality: RequirementCriticality;
   critical: boolean;
+  centrality: number;
+  expectedProficiency: ExpectedProficiency;
+  learnability: Learnability;
+  behavior: string;
   evidence: string;
+  inferenceLevel: InferenceLevel;
 }
 
 export interface WorkSignal {
@@ -423,6 +459,9 @@ export interface CapabilitySkillAssessment {
   status: SkillMatchStatus;
   matchedProfileSkill: ProfileSkill | null;
   evidence: string[];
+  evidenceStrength: number;
+  matchConfidence: number;
+  scopeNote: string;
   reason: string;
 }
 
@@ -436,10 +475,80 @@ export interface InterestSignalAssessment {
   explanation: string;
 }
 
+
+export interface CompetencyFamilyAssessment {
+  family: CompetencyFamily;
+  label: string;
+  score: number;
+  confidence: number;
+  coverage: number;
+  dominantStatus: SkillMatchStatus;
+  provenCount: number;
+  transferableCount: number;
+  gapCount: number;
+  blockerCount: number;
+  requirements: CapabilitySkillAssessment[];
+  summary: string;
+}
+
+export interface JobSuccessOutcome {
+  id: string;
+  statement: string;
+  source: string;
+  inferenceLevel: InferenceLevel;
+}
+
+export interface WorkprintItem {
+  id: string;
+  label: string;
+  score: number;
+  evidence: string[];
+}
+
+export interface JobContextSignal {
+  id: string;
+  label: string;
+  value: string;
+  evidence: string[];
+  inferenceLevel: InferenceLevel;
+}
+
+export interface JobSuccessProfile {
+  outcomes: JobSuccessOutcome[];
+  recurringResponsibilities: JobSuccessOutcome[];
+  contexts: JobContextSignal[];
+  workprint: WorkprintItem[];
+  technicalMode: TechnicalMode;
+  technicalModeReason: string;
+  unknowns: string[];
+}
+
+export interface FitSignature {
+  scopeStatus: ScopeStatus;
+  scopeReason: string;
+  readinessScore: number;
+  attractionScore: number;
+  directionScore: number;
+  viabilityScore: number;
+  evidenceConfidence: number;
+  decisionAction: DecisionAction;
+  decisionReason: string;
+  rankingRobustness: RankingRobustness;
+  rankingSensitivity: string;
+}
+
 export interface JobAssessment {
   fingerprint: JobFingerprint;
+  successProfile: JobSuccessProfile;
+  fitSignature: FitSignature;
   capabilitySkills: CapabilitySkillAssessment[];
+  competencyFamilies: CompetencyFamilyAssessment[];
   capabilityScore: number;
+  generalCompetencyScore: number;
+  domainReadinessScore: number;
+  technicalReadinessScore: number;
+  scopeReadinessScore: number;
+  evidenceConfidenceScore: number;
   interestSignals: InterestSignalAssessment[];
   interestScore: number;
   baseInterestScore: number;

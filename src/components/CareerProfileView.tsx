@@ -4,6 +4,7 @@ import {
   AlertCircle,
   BookOpenCheck,
   Check,
+  ChevronRight,
   Compass,
   FileText,
   Lightbulb,
@@ -16,6 +17,11 @@ import {
   X
 } from "lucide-react";
 import { WORK_DIMENSIONS } from "../data/ontology";
+import {
+  COMPETENCY_FAMILY_LABELS,
+  competencyFamilyForCategory,
+  profileEvidenceStrength
+} from "../lib/fitNavigator";
 import { discoveryPreferenceSummary } from "../lib/discovery";
 import { extractSourceFromFile } from "../lib/pdf";
 import {
@@ -29,6 +35,7 @@ import {
 } from "../lib/profile";
 import type {
   CareerDirection,
+  CompetencyFamily,
   Confidence,
   PeakExperience,
   PreferenceImportance,
@@ -87,6 +94,18 @@ function DeferredTextarea({ value, onCommit, rows = 5, placeholder = "" }: { val
   return <textarea rows={rows} value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={() => draft !== value && onCommit(draft)} placeholder={placeholder} />;
 }
 
+
+function EvidenceAdder({ onAdd }: { onAdd: (value: string) => void }) {
+  const [draft, setDraft] = useState("");
+  const submit = () => {
+    const clean = draft.trim();
+    if (!clean) return;
+    onAdd(clean);
+    setDraft("");
+  };
+  return <div className="evidence-adder"><input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && submit()} placeholder="Add evidence from a role, project, or accomplishment..." /><button type="button" onClick={submit}><Plus /> Add evidence</button></div>;
+}
+
 export function CareerProfileView({ profile, onChange, notify }: CareerProfileViewProps) {
   const resumeRef = useRef<HTMLInputElement | null>(null);
   const [resumeBusy, setResumeBusy] = useState(false);
@@ -96,6 +115,22 @@ export function CareerProfileView({ profile, onChange, notify }: CareerProfileVi
   const readiness = profileReadiness(profile);
   const themes = profileThemes(profile);
   const discovery = useMemo(() => discoveryPreferenceSummary(profile), [profile]);
+  const evidenceFamilies = useMemo(() => {
+    const active = profile.skills.filter((skill) => !skill.excluded);
+    const families = new Map<CompetencyFamily, ProfileSkill[]>();
+    active.forEach((skill) => {
+      const family = competencyFamilyForCategory(skill.category);
+      families.set(family, [...(families.get(family) || []), skill]);
+    });
+    return [...families.entries()].map(([family, skills]) => ({
+      family,
+      label: COMPETENCY_FAMILY_LABELS[family],
+      skills,
+      confirmed: skills.filter((skill) => skill.confirmed).length,
+      evidenceCount: skills.reduce((sum, skill) => sum + skill.evidence.length, 0),
+      strength: skills.length ? Math.round(skills.reduce((sum, skill) => sum + profileEvidenceStrength(skill), 0) / skills.length) : 0
+    })).sort((left, right) => right.strength - left.strength || right.skills.length - left.skills.length);
+  }, [profile.skills]);
 
   const visibleSkills = useMemo(() => profile.skills.filter((skill) => {
     if (skillFilter === "EXCLUDED") return skill.excluded;
@@ -159,6 +194,12 @@ export function CareerProfileView({ profile, onChange, notify }: CareerProfileVi
       <div className="profile-actions"><button className="primary" disabled={resumeBusy} onClick={() => resumeRef.current?.click()}><Upload /> {resumeBusy ? "Analyzing..." : profile.resumeText ? "Replace resume" : "Upload resume"}</button><input ref={resumeRef} type="file" accept="application/pdf,text/plain,.pdf,.txt" hidden onChange={(event) => event.target.files?.[0] && handleResume(event.target.files[0])} />{profile.resumeFileName && <span className="file-note"><FileText /> {profile.resumeFileName}</span>}</div>
     </section>
 
+    <section className="panel evidence-library-overview">
+      <div className="panel-head responsive"><div><span className="eyebrow">Candidate Evidence Graph</span><h2>Separate competency presence from demonstrated experience</h2><p>Each competency should connect to a role, project, behavior, or outcome. Missing resume evidence is treated as “not demonstrated,” not as proof that you lack the capability.</p></div><BookOpenCheck /></div>
+      <div className="evidence-family-grid">{evidenceFamilies.length ? evidenceFamilies.map((family) => <article key={family.family}><header><span>{family.label}</span><strong>{family.strength}</strong></header><div><i><b style={{ width: `${family.strength}%` }} /></i><small>{family.skills.length} competencies · {family.confirmed} confirmed · {family.evidenceCount} evidence excerpts</small></div><p>{family.skills.slice(0, 4).map((skill) => skill.name).join(" · ")}</p></article>) : <div className="empty-inline">Upload a resume or add competencies manually to build the evidence graph.</div>}</div>
+      <div className="evidence-model-strip"><span><b>Experience</b> role or project</span><ChevronRight /><span><b>Behavior</b> what you did</span><ChevronRight /><span><b>Competency</b> capability demonstrated</span><ChevronRight /><span><b>Scope</b> level and outcome</span></div>
+    </section>
+
     <section className="panel discovery-foundation">
       <div className="panel-head responsive"><div><span className="eyebrow">Fit Discovery foundation</span><h2>Your emerging work preferences</h2><p>These are hypotheses built from realistic job scenarios and past experience. They become more reliable as you test different roles.</p></div><Compass /></div>
       {profile.interviewAnswers && Object.keys(profile.interviewAnswers).length > 0 && <div className="legacy-discovery-note"><AlertCircle /><div><strong>Your Version 2 answers were retained as tentative evidence.</strong><span>They will not be shown as repeated abstract questions. Job-specific scenarios will validate or refine them.</span></div></div>}
@@ -177,7 +218,8 @@ export function CareerProfileView({ profile, onChange, notify }: CareerProfileVi
       {visibleSkills.length ? <div className="profile-skill-grid">{visibleSkills.map((skill) => <article key={skill.id} className={`profile-skill ${skill.confirmed ? "confirmed" : ""} ${skill.excluded ? "excluded" : ""}`}>
         <header><div><span className="skill-category">{skill.category.toLowerCase()}</span><h3>{skill.name}</h3></div><span className={`confidence-chip ${confidenceClass(skill.confidence)}`}>{skill.confidence.toLowerCase()} evidence</span></header>
         <div className="skill-controls"><label>Proficiency<select value={skill.proficiency} onChange={(event) => onChange(updateSkill(profile, skill.id, { proficiency: event.target.value as SkillProficiency }))}>{PROFICIENCIES.map((value) => <option key={value} value={value}>{value.charAt(0) + value.slice(1).toLowerCase()}</option>)}</select></label><button className={`confirm-btn ${skill.confirmed ? "active" : ""}`} onClick={() => onChange(updateSkill(profile, skill.id, { confirmed: !skill.confirmed, excluded: false }))}><Check /> {skill.confirmed ? "Confirmed" : "Confirm"}</button><button className="icon-btn" title={skill.excluded ? "Restore skill" : "Exclude skill"} onClick={() => onChange(updateSkill(profile, skill.id, { excluded: !skill.excluded, confirmed: false }))}>{skill.excluded ? <Plus /> : <X />}</button></div>
-        <div className="evidence-list">{skill.evidence.length ? skill.evidence.slice(0, 3).map((evidence) => <blockquote key={evidence.id}>{evidence.text}<cite>{evidence.source}</cite></blockquote>) : <p>No supporting excerpt yet. Keep this only when you can explain where the capability came from.</p>}</div>
+        <div className="evidence-list">{skill.evidence.length ? skill.evidence.slice(0, 4).map((evidence) => <blockquote key={evidence.id}>{evidence.text}<cite>{evidence.source}</cite></blockquote>) : <p>No supporting excerpt yet. Keep this only when you can explain where the capability came from.</p>}</div>
+        <EvidenceAdder onAdd={(value) => onChange(updateSkill(profile, skill.id, { evidence: [...skill.evidence, { id: makeId("evidence"), text: value, source: "Manual experience evidence" }], confirmed: true }))} />
       </article>)}</div> : <div className="empty-inline">No skills in this view.</div>}
     </section>
 

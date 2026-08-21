@@ -1,43 +1,52 @@
-# ReqRadar v3.1.0 — Dual Discovery & Portfolio Navigator
+# ReqRadar v3.2.0 — Evidence-Based Fit Navigator
 
-## Faster assessment structure
+## Evidence architecture
 
-- Replaced `updatedAt`-based assessment invalidation with content and profile signatures.
-- Status, pinning, notes, links, and other workflow-only changes reuse cached analysis.
-- Debounced browser-storage writes for jobs, profile, and settings.
-- Preserved cached results while stale roles refresh in short asynchronous batches.
-- Reused prepared role scenarios across the General Theme baseline and Role Discovery synthesis.
-- Kept similar-role comparisons lazy so they run only when opened.
+- Added a Candidate Evidence Graph organized by competency family.
+- Added manual accomplishment evidence to resume-derived competencies.
+- Added behavioral proficiency, evidence confidence, and candidate review controls.
+- Preserved the distinction between missing evidence and absence of a capability.
+- Improved semantic adjacency matching for manually entered and resume-derived competency names.
 
-## Layer 1: General Theme Discovery
+## Job Success Profile
 
-- Detects common work themes across the current opportunity portfolio.
-- Grounds each theme in representative responsibilities from multiple uploaded job descriptions.
-- Captures interest reaction, preferred frequency, confidence, contextual conditions, and reflection.
-- Produces a reusable General Theme Profile and Portfolio Theme Alignment score.
-- Keeps AI/technology adoption separate from hands-on technical execution.
+- Converts each posting into outcomes, recurring responsibilities, context, scope, technical mode, and a visual workprint.
+- Separates stated information, strong inferences, and unknowns.
+- Classifies requirements by centrality, expected proficiency, criticality, and learnability.
 
-## Layer 2: Role-Specific Discovery
+## Match Ledger
 
-- Uses the General Theme Profile as the baseline for every role.
-- Shows a transparent role-specific adjustment from -20 to +20.
-- Limits normal role sessions to the three to five questions most likely to change the decision.
-- Keeps role responses attached to that role rather than automatically rewriting global preferences.
-- Preserves Role Reality Preview, plausible week, scenario reflection, and networking hypotheses.
+- Links every material job requirement to posting evidence and candidate evidence.
+- Adds Proven, Transferable, Partial, Developmental gap, Not demonstrated, Critical blocker, Unknown, and Not relevant classifications.
+- Adds match confidence and explanations.
+- Supports manual per-role classification overrides.
 
-## Focus Navigator
+## Technical-scope assessment
 
-- Adds explainable smart focus buckets for navigating 20–50 opportunities.
-- Adds quick views for Focus now, Needs discovery, Needs networking, Too old, Too technical, Not interested, and All roles.
-- Adds grouping by focus bucket, role family, status, posting age, Interest Fit, Capability Fit, and networking stage.
-- Collapses lower-priority categories by default.
-- Renders ten roles per group initially with progressive expansion.
-- Separates technical capability gaps from low interest in hands-on technical work.
-- Supports manual focus-bucket overrides from the role detail panel.
+- Separates technical environment, technical fluency, and hands-on technical execution.
+- Applies out-of-scope treatment only when hands-on execution is central and comparable evidence is insufficient.
+- Prevents AI transformation and technical business roles from being treated like software-builder roles merely because they reference technology.
+
+## Fit Signature and decision model
+
+- Separates Scope, Readiness, Attraction, Career Direction, Viability, and Evidence Confidence.
+- Adds independent Scope and Recommended Action labels.
+- Applies gates before blended ranking.
+- Adds ranking robustness and sensitivity explanations.
+- Keeps unknown information as uncertainty rather than silently lowering fit.
+
+## Portfolio intelligence
+
+- Replaces the crowded default matrix with an evidence-based Fit Portfolio.
+- Adds hierarchical Competency Heatmap.
+- Adds Portfolio Demand view to identify recurring strengths, transferable areas, and blockers.
+- Adds side-by-side comparison for two to five roles.
+- Adds workprint and responsibility comparisons.
+- Preserves General Theme Discovery, Role-Specific Discovery, focus navigation, role families, and workflow tracking.
 
 ## Compatibility
 
-- Preserves existing jobs, resume evidence, skills, role discovery sessions, rankings, statuses, links, notes, and networking data.
-- Imports backups from earlier ReqRadar versions and normalizes the new settings and focus fields.
-- Backup schema v6 includes General Theme preferences and Focus Navigator settings.
-- No user resume or internal job description is included in the deployment package.
+- Preserves jobs, resume evidence, profile skills, discovery responses, statuses, rankings, notes, links, networking data, and manual overrides from previous versions.
+- Backup schema v7 remains compatible with earlier ReqRadar backup imports.
+- Analysis cache signatures include engine version 3.2.0 so outdated v3.1 assessments are refreshed safely.
+- No resume, internal job PDF, personal data, or credentials are included in the deployment package.

@@ -51,7 +51,7 @@ const VALID_NETWORKING = new Set<NetworkingStage>([
 const VALID_ACTIONS = new Set<ActionStage>(["REVIEW", "VALIDATE_ROLE", "IDENTIFY_CONTACT", "NETWORK", "PREPARE_APPLICATION", "APPLY", "FOLLOW_UP", "COMPLETE"]);
 const VALID_PRIORITY = new Set<ManualPriority>(["HIGH", "NORMAL", "LOW", "ARCHIVE"]);
 const VALID_RECOMMENDATION = new Set<RecommendationOverride>(["AUTO", "PURSUE_NOW", "EXPLORE_NETWORKING", "STRETCH", "LOW_PRIORITY", "DO_NOT_PURSUE"]);
-const VALID_SKILL_STATUS = new Set<SkillMatchStatus>(["PROVEN", "TRANSFERABLE", "DEVELOPMENT_GAP", "CRITICAL_BLOCKER", "UNKNOWN", "NOT_RELEVANT"]);
+const VALID_SKILL_STATUS = new Set<SkillMatchStatus>(["PROVEN", "TRANSFERABLE", "PARTIAL", "DEVELOPMENT_GAP", "NOT_DEMONSTRATED", "CRITICAL_BLOCKER", "UNKNOWN", "NOT_RELEVANT"]);
 const VALID_FOCUS_BUCKETS = new Set<FocusBucket>([
   "READY_TO_PURSUE", "NEEDS_DISCOVERY", "NEEDS_NETWORKING", "HIGH_INTEREST_STRETCH",
   "CAPABLE_NOT_COMPELLING", "TOO_TECHNICAL", "NOT_INTERESTED", "TOO_OLD",
@@ -128,8 +128,8 @@ function normalizeSkillStatus(value: unknown): SkillMatchStatus | null {
   if (typeof value === "string" && VALID_SKILL_STATUS.has(value as SkillMatchStatus)) return value as SkillMatchStatus;
   const legacy: Record<string, SkillMatchStatus> = {
     MATCH: "PROVEN",
-    PARTIAL: "TRANSFERABLE",
-    NO_MATCH: "DEVELOPMENT_GAP",
+    PARTIAL: "PARTIAL",
+    NO_MATCH: "NOT_DEMONSTRATED",
     CRITICAL_GAP: "CRITICAL_BLOCKER",
     NOT_RELEVANT: "NOT_RELEVANT"
   };
@@ -290,7 +290,7 @@ export function saveProfile(profile: UserProfile): StorageWriteResult {
 export function buildExportPayload(jobs: JobReq[], settings: AppSettings, profile: UserProfile, exportedAt = new Date().toISOString()): ReqRadarBackup {
   return {
     app: "ReqRadar",
-    schemaVersion: 6,
+    schemaVersion: 7,
     appVersion: __APP_VERSION__,
     exportedAt,
     jobs,
@@ -352,7 +352,7 @@ export function downloadJson(payload: ReqRadarBackup): void {
   const link = document.createElement("a");
   const date = payload.exportedAt.slice(0, 10);
   link.href = url;
-  link.download = `req-radar-v3.1-backup-${date}.json`;
+  link.download = `req-radar-v3.2-backup-${date}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();

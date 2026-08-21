@@ -30,20 +30,18 @@ import {
   X
 } from "lucide-react";
 import { CareerProfileView } from "./components/CareerProfileView";
+import { CompetencyHeatmapView } from "./components/CompetencyHeatmapView";
+import { EvidencePortfolioView } from "./components/EvidencePortfolioView";
+import { PortfolioDemandView } from "./components/PortfolioDemandView";
+import { RoleComparisonView } from "./components/RoleComparisonView";
 import { GeneralThemeDiscoveryView } from "./components/GeneralThemeDiscoveryView";
 import { FitDiscoveryStudio } from "./components/FitDiscoveryStudio";
 import { FitDiscoveryView } from "./components/FitDiscoveryView";
 import { GroupsView } from "./components/GroupsView";
 import { JobDrawer } from "./components/JobDrawer";
-import { JobTable, STATUS_OPTIONS } from "./components/JobTable";
-import { PortfolioMap } from "./components/PortfolioMap";
+import { STATUS_OPTIONS } from "./components/JobTable";
 import { PortfolioNavigator } from "./components/PortfolioNavigator";
-import {
-  assessJob,
-  buildComparisonsFromAssessments,
-  buildRoleGroups,
-  portfolioThemes
-} from "./lib/intelligence";
+import { assessJob, buildRoleGroups } from "./lib/intelligence";
 import { checkDuplicates, createJob, formatStatus, parseJobText } from "./lib/jobs";
 import { extractSourceFromFile, extractSourceFromText } from "./lib/pdf";
 import { profileReadiness } from "./lib/profile";
@@ -61,7 +59,6 @@ import {
   saveSettings
 } from "./lib/storage";
 import { jobAnalysisSignature, profileAnalysisSignature } from "./lib/signatures";
-import { topCounts } from "./lib/text";
 import type {
   AppSettings,
   BatchResult,
@@ -73,7 +70,7 @@ import type {
   UserProfile
 } from "./types";
 
-type View = "portfolio" | "roles" | "groups" | "themes" | "discovery" | "profile" | "comparisons";
+type View = "portfolio" | "heatmap" | "demand" | "compare" | "roles" | "groups" | "themes" | "discovery" | "profile";
 type Toast = { id: number; title: string; message: string; kind: "success" | "error" | "info" };
 type AnalysisError = { jobId: string; title: string; message: string };
 type AnalysisProgress = { done: number; total: number };
@@ -266,23 +263,12 @@ export default function App() {
   };
 
   const groups = useMemo(() => buildRoleGroups(jobs, assessments), [jobs, assessments]);
-  const comparisons = useMemo(
-    () => view === "comparisons" && !analysisBusy ? buildComparisonsFromAssessments(jobs, assessments) : [],
-    [view, jobs, assessments, analysisBusy]
-  );
-  const themes = useMemo(() => portfolioThemes(assessments.values()), [assessments]);
   const readiness = useMemo(() => profileReadiness(profile), [profile]);
 
   const selectedJob = jobs.find((job) => job.id === selectedJobId) || null;
   const selectedAssessment = selectedJob ? assessments.get(selectedJob.id) || null : null;
   const discoveryJob = jobs.find((job) => job.id === discoveryJobId) || null;
   const discoveryAssessment = discoveryJob ? assessments.get(discoveryJob.id) || null : null;
-
-  const activeJobs = useMemo(() => jobs.filter((job) => !settings.hiddenStatuses.includes(job.status)), [jobs, settings.hiddenStatuses]);
-  const topJobs = [...activeJobs].sort((left, right) => (assessments.get(right.id)?.finalScore || 0) - (assessments.get(left.id)?.finalScore || 0)).slice(0, 10);
-
-  const recurringStrengths = useMemo(() => topCounts([...assessments.values()].flatMap((assessment) => assessment.capabilitySkills.filter((item) => item.status === "PROVEN").map((item) => item.requirement.name)), 6), [assessments]);
-  const recurringGaps = useMemo(() => topCounts([...assessments.values()].flatMap((assessment) => assessment.capabilitySkills.filter((item) => item.status === "DEVELOPMENT_GAP" || item.status === "CRITICAL_BLOCKER").map((item) => item.requirement.name)), 6), [assessments]);
 
   const updateJob = (id: string, changes: Partial<JobReq>) => {
     const updatedAt = new Date().toISOString();
@@ -419,32 +405,30 @@ export default function App() {
     window.open(settings.recruitingPortalUrl, "_blank", "noopener,noreferrer");
   };
 
-  const pursueNowCount = [...assessments.values()].filter((assessment) => assessment.recommendation === "PURSUE_NOW").length;
-  const exploreCount = [...assessments.values()].filter((assessment) => assessment.recommendation === "EXPLORE_NETWORKING").length;
-  const stretchCount = [...assessments.values()].filter((assessment) => assessment.recommendation === "STRETCH").length;
-  const staleCount = [...assessments.values()].filter((assessment) => assessment.ageDays !== null && assessment.ageDays > 90 && assessment.viabilityScore === 0).length;
   const initialAnalysisPending = jobs.length > 0 && analysisBusy && assessments.size === 0;
 
   return <div className="app-shell">
     <button className={`mobile-backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />
     <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-      <div className="brand"><div><Target /></div><span><strong>ReqRadar</strong><small>Fit Discovery & Career Portfolio</small></span></div>
+      <div className="brand"><div><Target /></div><span><strong>ReqRadar</strong><small>Evidence-Based Fit Navigator</small></span></div>
       <nav>
-        <button className={view === "portfolio" ? "active" : ""} onClick={() => switchView("portfolio")}><LayoutDashboard /> Portfolio</button>
-        <button className={view === "roles" ? "active" : ""} onClick={() => switchView("roles")}><BriefcaseBusiness /> All roles <b>{jobs.length}</b></button>
+        <button className={view === "portfolio" ? "active" : ""} onClick={() => switchView("portfolio")}><LayoutDashboard /> Fit portfolio <b>{jobs.length}</b></button>
+        <button className={view === "heatmap" ? "active" : ""} onClick={() => switchView("heatmap")}><Target /> Competency heatmap</button>
+        <button className={view === "demand" ? "active" : ""} onClick={() => switchView("demand")}><TrendingUp /> Portfolio demand</button>
+        <button className={view === "compare" ? "active" : ""} onClick={() => switchView("compare")}><GitCompareArrows /> Compare roles</button>
+        <button className={view === "roles" ? "active" : ""} onClick={() => switchView("roles")}><BriefcaseBusiness /> Focus navigator</button>
         <button className={view === "groups" ? "active" : ""} onClick={() => switchView("groups")}><Layers3 /> Role families <b>{groups.length}</b></button>
         <button className={view === "themes" ? "active" : ""} onClick={() => switchView("themes")}><Sparkles /> General themes <b>{profile.discoveryPreferences.length}</b></button>
         <button className={view === "discovery" ? "active" : ""} onClick={() => switchView("discovery")}><Compass /> Role discovery <b>{jobs.filter((job) => Object.keys(job.fitDiscovery?.responses || {}).length > 0).length}</b></button>
-        <button className={view === "profile" ? "active" : ""} onClick={() => switchView("profile")}><UserRound /> Career profile <b>{readiness.score}%</b></button>
-        <button className={view === "comparisons" ? "active" : ""} onClick={() => switchView("comparisons")}><GitCompareArrows /> Similar roles <b>{view === "comparisons" ? comparisons.length : "…"}</b></button>
+        <button className={view === "profile" ? "active" : ""} onClick={() => switchView("profile")}><UserRound /> Career evidence <b>{readiness.score}%</b></button>
       </nav>
       <div className="sidebar-section"><span>Shortcuts</span><button onClick={openPortal}><ExternalLink /> Recruiting page</button><button onClick={() => setSyncOpen(true)}><Database /> Sync devices</button><button onClick={() => { setPortalDraft(settings.recruitingPortalUrl); setSettingsOpen(true); }}><Settings /> Settings</button></div>
-      <div className="sidebar-coach"><Sparkles /><strong>Career coaching model</strong><p>Capability, interest, direction, and viability are assessed separately.</p></div>
+      <div className="sidebar-coach"><Sparkles /><strong>Evidence before scores</strong><p>Scope, experience evidence, attraction, direction, and viability remain separate.</p></div>
       <div className="sidebar-footer"><AppVersion /><span>Data stays in this browser</span></div>
     </aside>
 
     <main>
-      <header className="topbar"><div className="topbar-title"><button className="icon-btn menu-btn" onClick={() => setSidebarOpen(true)}><Menu /></button><div><span>{view === "portfolio" ? "Decision portfolio" : view === "roles" ? "Focus Navigator" : view === "groups" ? "Role patterns" : view === "themes" ? "Layer 1 · General Theme Discovery" : view === "discovery" ? "Layer 2 · Role-Specific Discovery" : view === "profile" ? "Career evidence" : "Similarity intelligence"}</span><h1>{view === "portfolio" ? "Where should I focus?" : view === "roles" ? "Navigate the opportunity portfolio" : view === "groups" ? "Understand the role families" : view === "themes" ? "Learn what kinds of work energize you" : view === "discovery" ? "Discover what each role may feel like" : view === "profile" ? "Build a profile that explains your fit" : "Compare related opportunities"}</h1></div></div><div className="top-actions"><button className="secondary" onClick={() => setSyncOpen(true)}><RefreshCw /> Sync</button><button className="primary" onClick={() => setUploadOpen(true)}><Plus /> Upload reqs</button></div></header>
+      <header className="topbar"><div className="topbar-title"><button className="icon-btn menu-btn" onClick={() => setSidebarOpen(true)}><Menu /></button><div><span>{view === "portfolio" ? "Evidence-Based Fit Navigator" : view === "heatmap" ? "Capability comparison" : view === "demand" ? "Portfolio demand" : view === "compare" ? "Multi-role decision support" : view === "roles" ? "Focus Navigator" : view === "groups" ? "Role patterns" : view === "themes" ? "Layer 1 · General Theme Discovery" : view === "discovery" ? "Layer 2 · Role-Specific Discovery" : "Career evidence"}</span><h1>{view === "portfolio" ? "Which opportunities deserve my attention?" : view === "heatmap" ? "See strengths and gaps across every role" : view === "demand" ? "Understand what the portfolio repeatedly asks for" : view === "compare" ? "Compare the work, evidence, and trade-offs" : view === "roles" ? "Navigate the opportunity portfolio" : view === "groups" ? "Understand the role families" : view === "themes" ? "Learn what kinds of work energize you" : view === "discovery" ? "Discover what each role may feel like" : "Build a profile that explains your fit"}</h1></div></div><div className="top-actions"><button className="secondary" onClick={() => setSyncOpen(true)}><RefreshCw /> Sync</button><button className="primary" onClick={() => setUploadOpen(true)}><Plus /> Upload reqs</button></div></header>
 
       <div className="content">
         {storageWarning && <section className="runtime-alert storage-alert"><AlertTriangle /><div><strong>Changes may not be saving</strong><p>{storageWarning}</p></div><button className="secondary" onClick={exportBackup}><Download /> Download backup</button><button className="icon-btn" onClick={() => setStorageWarning("")} aria-label="Dismiss storage warning"><X /></button></section>}
@@ -453,34 +437,17 @@ export default function App() {
 
         {initialAnalysisPending ? <AnalysisLoading progress={analysisProgress} /> : <>
         {view === "portfolio" && <>
-          {readiness.score < 70 && <section className="coach-banner"><div><UserRound /><span><strong>Your fit model is still developing</strong><p>Upload a resume, confirm evidence, and complete realistic Fit Discovery scenarios to make recommendations more reliable.</p></span></div><button onClick={() => switchView(jobs.length ? "themes" : "profile")}>{jobs.length ? "Discover themes" : "Improve profile"} <ChevronRight /></button></section>}
-          <section className="stats-grid v2"><Stat icon={<BriefcaseBusiness />} label="Portfolio" value={jobs.length} detail={`${groups.length} role families`} /><Stat icon={<Target />} label="Pursue now" value={pursueNowCount} detail="Strong capability + interest" tone="success" /><Stat icon={<Network />} label="Explore" value={exploreCount} detail="Resolve uncertainty through people" /><Stat icon={<TrendingUp />} label="Stretch" value={stretchCount} detail="High interest, manageable gaps" /><Stat icon={<AlertTriangle />} label="Stale" value={staleCount} detail="Older than 90 days" tone="warning" /></section>
-
-          {!jobs.length ? <section className="panel"><Empty icon={<FileStack />} title="Build your opportunity portfolio" text="Upload multiple job requisition PDFs. ReqRadar will fingerprint, group, and compare them with your career evidence." action={<button className="primary" onClick={() => setUploadOpen(true)}><Upload /> Upload job requisitions</button>} /></section> : <>
-            <section className="portfolio-grid">
-              <article className="panel map-panel"><div className="panel-head responsive"><div><span className="eyebrow">Portfolio map</span><h2>Capability Fit × Interest Fit</h2><p>Strong fit and strong interest belong in the upper-right. Bubble size reflects career direction fit.</p></div><button className="text-button" onClick={() => switchView("roles")}>Open full list <ChevronRight /></button></div><PortfolioMap jobs={activeJobs} assessments={assessments} onOpen={setSelectedJobId} /></article>
-              <article className="panel theme-panel"><div className="panel-head"><div><span className="eyebrow">Market themes</span><h2>What your roles have in common</h2><p>Use these patterns to understand the portfolio—not just individual postings.</p></div><Sparkles /></div><div className="theme-ranking">{themes.map((theme, index) => <div key={theme.label}><span>{index + 1}</span><strong>{theme.label}</strong><div><i style={{ width: `${Math.min(100, (theme.count / Math.max(1, themes[0]?.count || 1)) * 100)}%` }} /></div><b>{theme.count}</b></div>)}</div></article>
-            </section>
-
-            <section className="panel group-snapshot"><div className="panel-head responsive"><div><span className="eyebrow">Role families</span><h2>Organize 30+ opportunities into a manageable portfolio</h2><p>Each family summarizes common responsibilities, fit, interest, and repeated gaps.</p></div><button className="secondary" onClick={() => switchView("groups")}><Layers3 /> View all families</button></div><div className="snapshot-grid">{groups.slice(0, 4).map((group) => <button key={group.id} onClick={() => switchView("groups")}><div><span>{group.jobIds.length} roles</span><h3>{group.label}</h3><p>{group.description}</p></div><div className="snapshot-scores"><span><b>{group.averageCapability}</b> capability</span><span><b>{group.averageInterest}</b> interest</span></div></button>)}</div></section>
-
-            <section className="insight-grid">
-              <article className="panel"><div className="section-head"><div><h3>Your strongest recurring matches</h3><p>Capabilities repeatedly supported by your profile.</p></div><CheckCircle2 /></div>{recurringStrengths.length ? <ul className="insight-list strengths">{recurringStrengths.map((item) => <li key={item.label}><span>{item.label}</span><b>{item.count} roles</b></li>)}</ul> : <p className="muted">Confirm resume skills to reveal recurring market strengths.</p>}</article>
-              <article className="panel"><div className="section-head"><div><h3>Common gaps across the portfolio</h3><p>Distinguish learnable gaps from genuine blockers.</p></div><CircleHelp /></div>{recurringGaps.length ? <ul className="insight-list gaps">{recurringGaps.map((item) => <li key={item.label}><span>{item.label}</span><b>{item.count} roles</b></li>)}</ul> : <p className="positive-copy">No repeated capability gaps are visible yet.</p>}</article>
-            </section>
-
-            <section className="panel top-opportunities"><div className="panel-head responsive"><div><span className="eyebrow">Decision queue</span><h2>Highest-priority opportunities</h2><p>The score never replaces your judgment. Open a role to inspect evidence and unknowns.</p></div><button className="secondary" onClick={() => switchView("roles")}>Manage all roles <ChevronRight /></button></div><JobTable jobs={topJobs} assessments={assessments} onOpen={setSelectedJobId} onUpdate={updateJob} compact /></section>
-          </>}
+          {readiness.score < 70 && <section className="coach-banner"><div><UserRound /><span><strong>Your evidence model is still developing</strong><p>Upload a resume, confirm experience evidence, and complete discovery to improve scope and fit confidence.</p></span></div><button onClick={() => switchView(jobs.length ? "profile" : "profile")}>Improve evidence <ChevronRight /></button></section>}
+          {!jobs.length ? <section className="panel"><Empty icon={<FileStack />} title="Build your opportunity portfolio" text="Upload multiple job requisition PDFs. ReqRadar will build Job Success Profiles, separate scope from interest, and map requirements to your experience evidence." action={<button className="primary" onClick={() => setUploadOpen(true)}><Upload /> Upload job requisitions</button>} /></section> : <EvidencePortfolioView jobs={jobs} assessments={assessments} onOpen={setSelectedJobId} onUpdate={updateJob} onOpenHeatmap={() => switchView("heatmap")} onOpenDemand={() => switchView("demand")} onOpenCompare={() => switchView("compare")} />}
         </>}
 
-        {view === "roles" && <PortfolioNavigator
-          jobs={jobs}
-          assessments={assessments}
-          settings={settings}
-          onSettingsChange={setSettings}
-          onOpen={setSelectedJobId}
-          onUpdate={updateJob}
-        />}
+        {view === "heatmap" && <CompetencyHeatmapView jobs={jobs} assessments={assessments} onOpen={setSelectedJobId} />}
+
+        {view === "demand" && <PortfolioDemandView jobs={jobs} assessments={assessments} onOpen={setSelectedJobId} />}
+
+        {view === "compare" && <RoleComparisonView jobs={jobs} assessments={assessments} onOpen={setSelectedJobId} />}
+
+        {view === "roles" && <PortfolioNavigator jobs={jobs} assessments={assessments} settings={settings} onSettingsChange={setSettings} onOpen={setSelectedJobId} onUpdate={updateJob} />}
 
         {view === "groups" && <GroupsView groups={groups} jobs={jobs} assessments={assessments} onOpen={setSelectedJobId} onUpdate={updateJob} />}
 
@@ -489,13 +456,6 @@ export default function App() {
         {view === "discovery" && <FitDiscoveryView jobs={jobs} assessments={assessments} profile={profile} onOpenThemes={() => switchView("themes")} onOpenJob={setSelectedJobId} onOpenDiscovery={setDiscoveryJobId} onUpdateJob={updateJob} />}
 
         {view === "profile" && <CareerProfileView profile={profile} onChange={updateProfile} notify={notify} />}
-
-        {view === "comparisons" && <section className="panel comparisons-panel"><div className="panel-head responsive"><div><span className="eyebrow">Role adjacency</span><h2>Similar and potentially duplicative opportunities</h2><p>Similarity combines title, requirements, work themes, and role family—not only shared words.</p></div><span className="result-count">{comparisons.length} related pairs</span></div>{comparisons.length ? <div className="comparison-list">{comparisons.slice(0, 60).map((comparison) => {
-          const source = jobs.find((job) => job.id === comparison.sourceJobId);
-          const target = jobs.find((job) => job.id === comparison.targetJobId);
-          if (!source || !target) return null;
-          return <article key={`${source.id}-${target.id}`}><div className="similarity-score"><strong>{comparison.score}%</strong><span>{comparison.type.replace(/_/g, " ").toLowerCase()}</span></div><div className="comparison-jobs"><button onClick={() => setSelectedJobId(source.id)}>{source.title}</button><GitCompareArrows /><button onClick={() => setSelectedJobId(target.id)}>{target.title}</button></div><div className="comparison-reasons">{comparison.reasons.map((reason) => <span key={reason}>{reason}</span>)}</div></article>;
-        })}</div> : <Empty icon={<GitCompareArrows />} title="No related pairs yet" text="Upload more job requisitions to compare role families, themes, and requirements." />}</section>}
         </>}
       </div>
     </main>

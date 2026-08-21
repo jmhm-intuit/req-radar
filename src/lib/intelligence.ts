@@ -25,6 +25,22 @@ import type {
   WorkSignal
 } from "../types";
 import { synthesizeDiscovery, discoveryConfidenceLabel, generateRoleScenarios } from "./discovery";
+import {
+  aggregateCompetencyFamilies,
+  behaviorFromEvidence,
+  buildJobSuccessProfile,
+  centralityForRequirement,
+  competencyFamilyForCategory,
+  expectedProficiency,
+  fitSignatureFor,
+  learnabilityForRequirement,
+  matchConfidenceFor,
+  profileEvidenceStrength,
+  requirementCriticality,
+  scopeReadinessFor,
+  targetStrength,
+  technicalModeForJob
+} from "./fitNavigator";
 import { generalThemeInterestForJob } from "./themes";
 import {
   average,
@@ -89,16 +105,36 @@ export function extractJobRequirements(job: JobReq): JobRequirement[] {
   const requirements = SKILL_TAXONOMY.flatMap((definition) => {
     const count = phraseCount(source, definition.aliases);
     if (!count) return [];
-    const evidence = evidenceForPhrases(`${job.qualifications.join("\n")}\n${job.responsibilities.join("\n")}\n${job.title}`, definition.aliases, 1)[0]
-      || evidenceForPhrases(safeOverviewText(job), definition.aliases, 1)[0]
-      || `Detected from the job posting: ${definition.name}`;
+    const responsibilityEvidence = evidenceForPhrases(job.responsibilities.join("\n"), definition.aliases, 1)[0];
+    const qualificationEvidence = evidenceForPhrases(job.qualifications.join("\n"), definition.aliases, 1)[0];
+    const titleEvidence = evidenceForPhrases(`${job.title}\n${job.category}`, definition.aliases, 1)[0];
+    const overviewEvidence = evidenceForPhrases(safeOverviewText(job), definition.aliases, 1)[0];
+    const evidence = definition.category === "CREDENTIAL"
+      ? qualificationEvidence || responsibilityEvidence || titleEvidence || overviewEvidence || `Detected from the job posting: ${definition.name}`
+      : responsibilityEvidence || qualificationEvidence || titleEvidence || overviewEvidence || `Detected from the job posting: ${definition.name}`;
+    const alternativePathway = /\b(?:or|and\/or)\b/i.test(evidence) && (evidence.match(/,/g) || []).length >= 1;
+    const importance = alternativePathway ? "GENERAL" : requirementImportance(evidence);
+    const critical = criticalCredential(definition.name, evidence);
+    const centrality = centralityForRequirement(job, definition.aliases, evidence, count);
+    const family = competencyFamilyForCategory(definition.category);
+    const expected = expectedProficiency(evidence, job.minYears);
+    const criticality = alternativePathway && !critical
+      ? "CONTEXT"
+      : requirementCriticality(definition.category, importance, critical, evidence, centrality);
     return [{
       id: `${normalizeText(definition.name)}-${makeId("req")}`,
       name: definition.name,
       category: definition.category,
-      importance: requirementImportance(evidence),
-      critical: criticalCredential(definition.name, evidence),
-      evidence
+      family,
+      importance,
+      criticality,
+      critical,
+      centrality,
+      expectedProficiency: expected,
+      learnability: learnabilityForRequirement(family, criticality, expected),
+      behavior: behaviorFromEvidence(definition.name, evidence),
+      evidence,
+      inferenceLevel: "STATED"
     } satisfies JobRequirement];
   });
 
@@ -111,13 +147,21 @@ export function extractJobRequirements(job: JobReq): JobRequirement[] {
   explicitCritical.forEach((item) => {
     if (!item.patterns.some((pattern) => containsPhrase(source, pattern))) return;
     if (requirements.some((requirement) => normalizeText(requirement.name) === normalizeText(item.name))) return;
+    const evidence = evidenceForPhrases(source, item.patterns, 1)[0] || `Mandatory credential detected: ${item.name}`;
     requirements.push({
       id: `${normalizeText(item.name)}-${makeId("req")}`,
       name: item.name,
       category: item.category,
+      family: "CREDENTIAL",
       importance: "MUST",
+      criticality: "HARD_GATE",
       critical: true,
-      evidence: evidenceForPhrases(source, item.patterns, 1)[0] || `Mandatory credential detected: ${item.name}`
+      centrality: 5,
+      expectedProficiency: "EXPERT",
+      learnability: "LOW",
+      behavior: behaviorFromEvidence(item.name, evidence),
+      evidence,
+      inferenceLevel: "STATED"
     });
   });
 
@@ -231,15 +275,86 @@ function exactProfileSkill(requirement: JobRequirement, profile: UserProfile): P
   return activeProfileSkills(profile).find((skill) => skill.normalizedName === normalizeText(requirement.name)) || null;
 }
 
+const SKILL_TOKEN_GROUPS: string[][] = [
+  ["analysis", "analytical", "analytics", "insight", "model", "modeling", "modelling"],
+  ["strategy", "strategic", "planning", "prioritization", "prioritisation"],
+  ["operation", "operations", "operational", "operating", "bizops"],
+  ["transform", "transformation", "change", "redesign"],
+  ["lead", "leader", "leadership", "manage", "management"],
+  ["influence", "influencing", "stakeholder", "alignment"],
+  ["communicate", "communication", "presentation", "storytelling", "narrative"],
+  ["customer", "client", "user", "member"],
+  ["product", "roadmap", "discovery"],
+  ["finance", "financial", "budget", "forecast", "p&l"],
+  ["program", "project", "portfolio", "governance"],
+  ["artificial", "ai", "machine", "ml", "technology", "technical"],
+  ["software", "engineering", "developer", "coding", "architecture"],
+  ["coach", "coaching", "mentor", "development", "talent"]
+];
+
+const SKILL_STOP_WORDS = new Set([
+  "and", "or", "of", "the", "a", "an", "to", "for", "with", "in", "on", "at", "by", "from",
+  "skill", "skills", "experience", "knowledge", "ability", "expertise"
+]);
+
+function canonicalSkillTokens(value: string): Set<string> {
+  const raw = normalizeText(value).split(/\s+/).filter((token) => token.length > 1 && !SKILL_STOP_WORDS.has(token));
+  return new Set(raw.map((token) => {
+    const group = SKILL_TOKEN_GROUPS.find((items) => items.includes(token));
+    if (group) return group[0];
+    return token
+      .replace(/(izations?|isations?)$/, "ize")
+      .replace(/(ments?|ness|ities|ity)$/, "")
+      .replace(/(ing|ed|es|s)$/, "");
+  }).filter((token) => token.length > 1));
+}
+
+function definitionText(name: string): string {
+  const definition = skillDefinition(name);
+  return definition
+    ? [definition.name, ...definition.aliases, ...definition.related].join(" ")
+    : name;
+}
+
+function skillAffinity(requirement: JobRequirement, skill: ProfileSkill): number {
+  const requirementName = normalizeText(requirement.name);
+  const skillName = normalizeText(skill.name);
+  if (requirementName === skillName) return 100;
+
+  const requirementDefinition = skillDefinition(requirement.name);
+  const candidateDefinition = skillDefinition(skill.name);
+  const relatedNames = new Set([
+    ...(requirementDefinition?.related || []),
+    ...(candidateDefinition?.related || [])
+  ].map(normalizeText));
+  if (relatedNames.has(requirementName) || relatedNames.has(skillName)) return 88;
+
+  const requirementText = definitionText(requirement.name);
+  const candidateText = definitionText(skill.name);
+  if (normalizeText(requirementText).includes(skillName) || normalizeText(candidateText).includes(requirementName)) return 82;
+
+  const requirementTokens = canonicalSkillTokens(requirementText);
+  const candidateTokens = canonicalSkillTokens(candidateText);
+  const shared = [...requirementTokens].filter((token) => candidateTokens.has(token));
+  const union = new Set([...requirementTokens, ...candidateTokens]);
+  const overlap = union.size ? shared.length / union.size : 0;
+  const sameCategory = candidateDefinition?.category === requirement.category || skill.category === requirement.category;
+
+  if (shared.length >= 2 && overlap >= 0.22) return 72;
+  if (shared.length >= 1 && overlap >= 0.34 && sameCategory) return 64;
+  if (shared.length >= 1 && overlap >= 0.50) return 60;
+  return 0;
+}
+
 function relatedProfileSkill(requirement: JobRequirement, profile: UserProfile): ProfileSkill | null {
-  const definition = skillDefinition(requirement.name);
-  if (!definition) return null;
-  const related = new Set(definition.related.map(normalizeText));
-  return activeProfileSkills(profile).find((skill) => {
-    if (related.has(skill.normalizedName)) return true;
-    const candidateDefinition = skillDefinition(skill.name);
-    return candidateDefinition?.related.some((item) => normalizeText(item) === normalizeText(requirement.name)) || false;
-  }) || null;
+  const candidates = activeProfileSkills(profile)
+    .map((skill) => ({ skill, affinity: skillAffinity(requirement, skill) }))
+    .filter((item) => item.affinity >= 60)
+    .sort((left, right) => {
+      if (right.affinity !== left.affinity) return right.affinity - left.affinity;
+      return profileEvidenceStrength(right.skill) - profileEvidenceStrength(left.skill);
+    });
+  return candidates[0]?.skill || null;
 }
 
 function capabilityStatus(
@@ -250,58 +365,62 @@ function capabilityStatus(
   const override = job.skillOverrides[requirement.name];
   const exact = exactProfileSkill(requirement, profile);
   const related = relatedProfileSkill(requirement, profile);
+  const matched = exact || related;
+  const strength = profileEvidenceStrength(matched);
+  const target = targetStrength(requirement.expectedProficiency);
+
+  let status: SkillMatchStatus;
+  let reason: string;
 
   if (override) {
-    return {
-      requirement,
-      status: override,
-      matchedProfileSkill: exact || related,
-      evidence: (exact || related)?.evidence.map((item) => item.text) || [],
-      reason: "Manually classified for this requisition."
-    };
+    status = override;
+    reason = "Manually classified for this requisition.";
+  } else if (exact) {
+    if (!exact.evidence.length && !exact.confirmed) {
+      status = "UNKNOWN";
+      reason = "The competency is listed, but supporting experience evidence has not been reviewed.";
+    } else if (strength >= target - 8) {
+      status = "PROVEN";
+      reason = `Direct evidence is comparable to the expected ${requirement.expectedProficiency.toLowerCase()} level.`;
+    } else if (strength >= target - 28) {
+      status = "PARTIAL";
+      reason = "Direct evidence exists, but the depth, recency, or scope appears below the role's expectation.";
+    } else {
+      status = "NOT_DEMONSTRATED";
+      reason = "The current profile mentions this competency but does not yet demonstrate it at the expected level.";
+    }
+  } else if (related) {
+    status = strength >= 42 ? "TRANSFERABLE" : "PARTIAL";
+    reason = status === "TRANSFERABLE"
+      ? `Adjacent evidence found through ${related.name}; the transition path appears credible.`
+      : `Related evidence exists through ${related.name}, but the transfer needs validation.`;
+  } else if (!activeProfileSkills(profile).length) {
+    status = "UNKNOWN";
+    reason = "Upload and review a resume before treating this as a gap.";
+  } else if (requirement.criticality === "HARD_GATE") {
+    status = "CRITICAL_BLOCKER";
+    reason = "A hard gate or mandatory credential was not demonstrated in the current profile.";
+  } else if (requirement.criticality === "DAY_ONE_ESSENTIAL" && requirement.learnability === "LOW") {
+    status = "CRITICAL_BLOCKER";
+    reason = "This appears central on day one and is unlikely to be learned during normal onboarding.";
+  } else if (requirement.criticality === "DAY_ONE_ESSENTIAL") {
+    status = "NOT_DEMONSTRATED";
+    reason = "No comparable evidence was found for a day-one requirement. This is not proof the capability is absent.";
+  } else {
+    status = "DEVELOPMENT_GAP";
+    reason = "No direct evidence was found, but the requirement appears learnable or supporting rather than blocking.";
   }
 
-  if (exact) {
-    const status: SkillMatchStatus = exact.confirmed || exact.evidence.length ? "PROVEN" : "UNKNOWN";
-    return {
-      requirement,
-      status,
-      matchedProfileSkill: exact,
-      evidence: exact.evidence.map((item) => item.text),
-      reason: status === "PROVEN"
-        ? `Direct ${exact.source === "RESUME" ? "resume" : "profile"} evidence found.`
-        : "The skill is listed, but the evidence has not been reviewed."
-    };
-  }
-
-  if (related) {
-    return {
-      requirement,
-      status: "TRANSFERABLE",
-      matchedProfileSkill: related,
-      evidence: related.evidence.map((item) => item.text),
-      reason: `Adjacent evidence found through ${related.name}.`
-    };
-  }
-
-  if (!activeProfileSkills(profile).length) {
-    return {
-      requirement,
-      status: "UNKNOWN",
-      matchedProfileSkill: null,
-      evidence: [],
-      reason: "Upload and review a resume before treating this as a gap."
-    };
-  }
-
+  const evidence = matched?.evidence.map((item) => item.text) || [];
   return {
     requirement,
-    status: requirement.critical ? "CRITICAL_BLOCKER" : "DEVELOPMENT_GAP",
-    matchedProfileSkill: null,
-    evidence: [],
-    reason: requirement.critical
-      ? "A mandatory credential or non-negotiable requirement was not found."
-      : "No direct or adjacent evidence was found in the current profile."
+    status,
+    matchedProfileSkill: matched,
+    evidence,
+    evidenceStrength: strength,
+    matchConfidence: matchConfidenceFor(requirement, matched, status),
+    scopeNote: `${requirement.expectedProficiency.toLowerCase()} expectation · ${requirement.centrality}/5 centrality · ${requirement.learnability.toLowerCase()} learnability`,
+    reason
   };
 }
 
@@ -309,8 +428,10 @@ function capabilityScore(items: CapabilitySkillAssessment[]): number {
   if (!items.length) return 50;
   const scoreByStatus: Record<SkillMatchStatus, number> = {
     PROVEN: 100,
-    TRANSFERABLE: 68,
-    DEVELOPMENT_GAP: 28,
+    TRANSFERABLE: 76,
+    PARTIAL: 55,
+    DEVELOPMENT_GAP: 36,
+    NOT_DEMONSTRATED: 25,
     CRITICAL_BLOCKER: 0,
     UNKNOWN: 50,
     NOT_RELEVANT: 70
@@ -503,24 +624,8 @@ export function suggestedNetworkingQuestions(assessment: JobAssessment): string[
 }
 
 function technicalRoleAssessment(job: JobReq, fingerprint: JobFingerprint): { score: number; reason: string } {
-  const source = normalizeText(`${job.title} ${job.category} ${job.descriptionText} ${job.qualifications.join(" ")}`);
-  const technicalRequirements = fingerprint.requirements.filter((item) => item.category === "TECHNOLOGY");
-  const handsOnHits = phraseCount(source, [
-    "hands-on", "write code", "coding", "software development", "software engineering", "production systems",
-    "system design", "technical architecture", "machine learning model", "data pipeline", "api development",
-    "python", "java", "sql", "cloud infrastructure", "debug", "deploy"
-  ]);
-  const businessTechHits = phraseCount(source, [
-    "ai adoption", "technology transformation", "digital transformation", "partner with engineering",
-    "product strategy", "technical stakeholders", "emerging technology"
-  ]);
-  const mustTechnical = technicalRequirements.filter((item) => item.importance === "MUST").length;
-  const score = clamp(Math.round(handsOnHits * 15 + mustTechnical * 12 + technicalRequirements.length * 5 - businessTechHits * 4));
-  if (handsOnHits >= 3) return { score, reason: "The role appears to require substantial hands-on technical execution." };
-  if (mustTechnical >= 3) return { score, reason: "Several technical capabilities appear to be day-one requirements." };
-  if (businessTechHits >= 2 && handsOnHits <= 1) return { score: Math.min(score, 42), reason: "Technology is primarily a transformation or partnership context, not clearly hands-on execution." };
-  if (technicalRequirements.length) return { score, reason: "The role includes technical content, but the amount of hands-on execution is not fully clear." };
-  return { score: Math.min(score, 20), reason: "The role is not primarily technical based on the available posting evidence." };
+  const technical = technicalModeForJob(job, fingerprint.requirements);
+  return { score: technical.score, reason: technical.reason };
 }
 
 export function focusBucketLabel(bucket: FocusBucket): string {
@@ -587,8 +692,46 @@ function determineFocusBucket(
 
 export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const fingerprint = buildFingerprint(job);
+  const successProfile = buildJobSuccessProfile(job, fingerprint.requirements);
   const capabilitySkills = fingerprint.requirements.map((requirement) => capabilityStatus(job, requirement, profile));
-  const capability = capabilityScore(capabilitySkills);
+  const rawCapability = capabilityScore(capabilitySkills);
+  const scopeReadiness = scopeReadinessFor(job, profile, capabilitySkills);
+  const competencyFamilies = aggregateCompetencyFamilies(
+    capabilitySkills,
+    scopeReadiness.score,
+    scopeReadiness.confidence,
+    scopeReadiness.summary
+  );
+
+  const familyWithRequirements = (ids: Array<JobRequirement["family"]>, fallback: number) => {
+    const selected = competencyFamilies.filter((family) => ids.includes(family.family) && family.requirements.length);
+    return selected.length ? Math.round(average(selected.map((family) => family.score), fallback)) : fallback;
+  };
+  const generalCompetencyScore = familyWithRequirements(
+    ["STRATEGY", "LEADERSHIP_INFLUENCE", "OPERATIONS_TRANSFORMATION", "ANALYTICS_FINANCE"],
+    rawCapability
+  );
+  const domainReadinessScore = familyWithRequirements(["PRODUCT_CUSTOMER", "FUNCTIONAL_DOMAIN"], 65);
+  const technicalFamily = competencyFamilies.find((family) => family.family === "TECHNICAL");
+  const technicalReadinessScore = successProfile.technicalMode === "NON_TECHNICAL"
+    ? 100
+    : successProfile.technicalMode === "TECHNICAL_ENVIRONMENT"
+      ? Math.max(76, technicalFamily?.score || 60)
+      : successProfile.technicalMode === "TECHNICAL_FLUENCY"
+        ? Math.max(48, technicalFamily?.score || 55)
+        : technicalFamily?.score || 35;
+  const scopeReadinessScore = scopeReadiness.score;
+  const technicalWeight = successProfile.technicalMode === "HANDS_ON_EXECUTION" ? 0.25 : successProfile.technicalMode === "TECHNICAL_FLUENCY" ? 0.15 : 0.05;
+  const domainWeight = 0.20;
+  const scopeWeight = 0.20;
+  const generalWeight = 1 - technicalWeight - domainWeight - scopeWeight;
+  const capability = clamp(Math.round(
+    generalCompetencyScore * generalWeight
+      + domainReadinessScore * domainWeight
+      + technicalReadinessScore * technicalWeight
+      + scopeReadinessScore * scopeWeight
+  ));
+
   const interestSignals = fingerprint.workSignals.map((signal) => interestSignalAssessment(signal, profile));
   const broadInterest = calculateInterest(interestSignals, 0);
   const preparedScenarios = generateRoleScenarios(job, fingerprint);
@@ -607,9 +750,10 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const blockers = capabilitySkills.filter((item) => item.status === "CRITICAL_BLOCKER").map((item) => item.requirement.name);
   const unknowns = uniqueStrings([
     ...(discovery.answeredCount
-      ? discovery.unresolvedQuestions.slice(0, 5)
+      ? discovery.unresolvedQuestions.slice(0, 4)
       : interestSignals.filter((item) => item.tone === "UNKNOWN" && item.preference.importance >= 2).map((item) => item.label)),
     ...capabilitySkills.filter((item) => item.status === "UNKNOWN" && item.requirement.importance === "MUST").map((item) => item.requirement.name),
+    ...successProfile.unknowns.slice(0, 3),
     ...(fingerprint.leadershipModel === "Leadership model unclear" ? ["Leadership model"] : [])
   ]);
   const ageDays = jobAgeDays(job.datePosted);
@@ -617,12 +761,36 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
   const technical = technicalRoleAssessment(job, fingerprint);
   const stale = ageDays !== null && ageDays > 90 && !job.ageOverride && !job.verifiedActiveAt;
   const readiness = actionReadiness(job.networkingStage);
-  const calculatedRecommendation = recommendationFor(capability, interest, direction.score, viable.score, blockers, unknowns, stale);
+  const fitSignature = fitSignatureFor({
+    job,
+    profile,
+    capabilityItems: capabilitySkills,
+    families: competencyFamilies,
+    successProfile,
+    readinessScore: capability,
+    interestScore: interest,
+    directionScore: direction.score,
+    viabilityScore: viable.score,
+    ageDays,
+    criticalBlockers: blockers
+  });
+  const evidenceConfidenceScore = fitSignature.evidenceConfidence;
+
+  const automaticRecommendation: Recommendation = fitSignature.decisionAction === "PURSUE"
+    ? "PURSUE_NOW"
+    : fitSignature.decisionAction === "EXPLORE"
+      ? (fitSignature.scopeStatus === "CREDIBLE_STRETCH" && interest >= 72 ? "STRETCH" : "EXPLORE_NETWORKING")
+      : fitSignature.decisionAction === "HOLD"
+        ? "LOW_PRIORITY"
+        : "DO_NOT_PURSUE";
+  const calculatedRecommendation = automaticRecommendation;
   const recommendation = job.recommendationOverride === "AUTO" ? calculatedRecommendation : job.recommendationOverride;
   const priorityAdjustment = job.manualPriority === "HIGH" ? 8 : job.manualPriority === "LOW" ? -8 : job.manualPriority === "ARCHIVE" ? -25 : 0;
+  const scopeAdjustment = fitSignature.scopeStatus === "IN_SCOPE_NOW" ? 7 : fitSignature.scopeStatus === "CREDIBLE_STRETCH" ? 0 : fitSignature.scopeStatus === "INSUFFICIENT_EVIDENCE" ? -10 : -30;
+  const actionAdjustment = fitSignature.decisionAction === "PURSUE" ? 7 : fitSignature.decisionAction === "EXPLORE" ? 2 : fitSignature.decisionAction === "HOLD" ? -5 : fitSignature.decisionAction === "VERIFY_ACTIVE" ? -12 : -24;
   const rawScore = capability * 0.35 + interest * 0.30 + direction.score * 0.20 + viable.score * 0.15;
-  const finalScore = clamp(Math.round(rawScore + job.manualAdjustment + priorityAdjustment));
-  const evidenceConfidence = assessmentConfidence(profile, fingerprint, unknowns);
+  const finalScore = clamp(Math.round(rawScore + scopeAdjustment + actionAdjustment + job.manualAdjustment + priorityAdjustment));
+  const evidenceConfidence = evidenceConfidenceScore >= 72 ? "HIGH" : evidenceConfidenceScore >= 45 ? "MEDIUM" : "LOW";
   const discoveryConfidence = discoveryConfidenceLabel(discovery.confidence);
   const confidence: Confidence = discovery.answeredCount >= 4
     ? (evidenceConfidence === "LOW" ? discoveryConfidence : discoveryConfidence === "HIGH" ? "HIGH" : evidenceConfidence)
@@ -631,43 +799,53 @@ export function assessJob(job: JobReq, profile: UserProfile): JobAssessment {
     job, capability, interest, recommendation, blockers, stale, technical, discovery, generalTheme.confidence, unknowns
   );
 
-  const positiveInterest = interestSignals.filter((item) => item.tone === "POSITIVE").sort((left, right) => right.preference.importance - left.preference.importance || right.alignmentScore - left.alignmentScore);
   const negativeInterest = interestSignals.filter((item) => item.tone === "NEGATIVE").sort((left, right) => right.preference.importance - left.preference.importance || left.alignmentScore - right.alignmentScore);
-  const proven = capabilitySkills.filter((item) => item.status === "PROVEN").length;
-  const transferable = capabilitySkills.filter((item) => item.status === "TRANSFERABLE").length;
+  const strongestFamily = competencyFamilies
+    .filter((family) => family.requirements.length || family.family === "SCOPE")
+    .sort((left, right) => right.score - left.score)[0];
+  const weakestFamily = competencyFamilies
+    .filter((family) => family.requirements.length || family.family === "SCOPE")
+    .sort((left, right) => left.score - right.score)[0];
 
   const reasons = uniqueStrings([
-    `${capability}% Capability Fit: ${proven} proven and ${transferable} transferable requirements`,
+    `${fitSignature.scopeStatus.replace(/_/g, " ").toLowerCase()}: ${fitSignature.scopeReason}`,
+    `${capability}% readiness: ${generalCompetencyScore}% general competencies · ${domainReadinessScore}% domain · ${technicalReadinessScore}% technical · ${scopeReadinessScore}% scope`,
     `${interest}% Interest Fit: ${baseInterest} general-theme baseline${roleSpecificAdjustment ? ` ${roleSpecificAdjustment > 0 ? "+" : ""}${roleSpecificAdjustment} role-specific adjustment` : ""}`,
-    ...(discovery.energizers[0] ? [`Likely energizer: ${discovery.energizers[0]}`] : []),
-    ...(discovery.drains[0] ? [`Potential drain: ${discovery.drains[0]}`] : []),
+    strongestFamily ? `Strongest evidence family: ${strongestFamily.label} (${strongestFamily.score})` : "",
+    weakestFamily && weakestFamily.score < 65 ? `Primary evidence gap: ${weakestFamily.label} (${weakestFamily.score})` : "",
+    `${successProfile.technicalMode.replace(/_/g, " ").toLowerCase()}: ${successProfile.technicalModeReason}`,
     `${direction.score}% Career Direction Fit${direction.matches.length ? ` with ${direction.matches[0]}` : ""}`,
+    `${evidenceConfidenceScore}% evidence confidence · ${fitSignature.rankingRobustness.toLowerCase()} ranking`,
     viable.label,
-    ...(negativeInterest[0]
-      ? [negativeInterest[0].preference.score < 0
-        ? `Potential drain: ${negativeInterest[0].label}`
-        : `Interest gap: limited ${negativeInterest[0].label.toLowerCase()}`]
-      : []),
+    ...(negativeInterest[0] ? [`Potential drain: ${negativeInterest[0].label}`] : []),
     ...(blockers[0] ? [`Critical blocker: ${blockers[0]}`] : []),
     ...(job.recommendationOverride !== "AUTO" ? ["Recommendation manually overridden"] : []),
     ...(job.manualAdjustment ? [`Manual rank adjustment ${job.manualAdjustment > 0 ? "+" : ""}${job.manualAdjustment}`] : [])
   ]);
 
-  let nextAction = "Review the evidence and decide whether to explore.";
-  if (stale) nextAction = "Confirm the requisition is active before investing more time.";
-  else if (blockers.length) nextAction = "Validate whether the critical requirement is truly non-negotiable.";
-  else if (discovery.answeredCount < Math.min(5, discovery.targetCount)) nextAction = `Continue Fit Discovery: ${discovery.nextQuestion}`;
-  else if (recommendation === "PURSUE_NOW" && job.networkingStage === "NOT_STARTED") nextAction = "Identify a contact and validate the role before applying.";
-  else if (recommendation === "PURSUE_NOW") nextAction = "Continue networking and prepare a tailored application.";
-  else if (recommendation === "EXPLORE_NETWORKING") nextAction = "Use a networking conversation to resolve the key unknowns.";
-  else if (recommendation === "STRETCH") nextAction = "Test whether the developmental gaps are acceptable through networking.";
-  else if (recommendation === "LOW_PRIORITY") nextAction = "Compare against stronger clusters before spending more time.";
-  else if (recommendation === "DO_NOT_PURSUE") nextAction = "Archive unless new evidence changes the assessment.";
+  let nextAction = "Review the Match Ledger and decide whether to explore.";
+  if (fitSignature.decisionAction === "VERIFY_ACTIVE") nextAction = "Confirm the requisition is active before investing more time.";
+  else if (fitSignature.scopeStatus === "OUT_OF_SCOPE") nextAction = "Review the hard gate or technical scope before archiving.";
+  else if (fitSignature.scopeStatus === "INSUFFICIENT_EVIDENCE") nextAction = "Strengthen the candidate evidence profile for the central requirements.";
+  else if (discovery.answeredCount < Math.min(4, discovery.targetCount) && interest >= 55) nextAction = `Continue role discovery: ${discovery.nextQuestion}`;
+  else if (fitSignature.decisionAction === "PURSUE" && job.networkingStage === "NOT_STARTED") nextAction = "Identify a contact and validate the work mix before applying.";
+  else if (fitSignature.decisionAction === "PURSUE") nextAction = "Prepare a tailored application using the strongest evidence matches.";
+  else if (fitSignature.decisionAction === "EXPLORE") nextAction = "Resolve the most decision-relevant unknown through networking or evidence review.";
+  else if (fitSignature.decisionAction === "HOLD") nextAction = "Compare with stronger in-scope opportunities before investing more time.";
+  else if (fitSignature.decisionAction === "DO_NOT_PURSUE") nextAction = "Archive unless new evidence materially changes scope or attraction.";
 
   return {
     fingerprint,
+    successProfile,
+    fitSignature,
     capabilitySkills,
+    competencyFamilies,
     capabilityScore: capability,
+    generalCompetencyScore,
+    domainReadinessScore,
+    technicalReadinessScore,
+    scopeReadinessScore,
+    evidenceConfidenceScore,
     interestSignals,
     interestScore: interest,
     baseInterestScore: baseInterest,
