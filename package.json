@@ -1,0 +1,25 @@
+{
+  "name": "req-radar",
+  "private": true,
+  "version": "4.0.0",
+  "type": "module",
+  "description": "ReqRadar v4: a resume-grounded Career Portfolio Navigator that organizes changing role lists into work families, prioritizes a focused shortlist, and tracks active applications.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "0.468.0",
+    "pdfjs-dist": "4.10.38",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.7.3",
+    "vite": "5.4.20"
+  }
+}
