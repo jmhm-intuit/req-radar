@@ -1,0 +1,1451 @@
+[
+  {
+    "id": "action_add_extra",
+    "file": "assets/action_add_extra.webp",
+    "mime": "image/webp",
+    "bytes": 16072,
+    "sha256": "8fa7da42d5ed4a8c1b0ccf69e54d5e1ba02e7d0aa63f33d1d60a10f316923157"
+  },
+  {
+    "id": "action_complete",
+    "file": "assets/action_complete.webp",
+    "mime": "image/webp",
+    "bytes": 16586,
+    "sha256": "0a48931135aedc4168fae1a633c51b39e4753a07faf677249817dfc06ba06ff3"
+  },
+  {
+    "id": "action_move",
+    "file": "assets/action_move.webp",
+    "mime": "image/webp",
+    "bytes": 15192,
+    "sha256": "a3f0d91f6a95d88d6e0b5149344dd034104c9a9ac3858987977bd519a241864a"
+  },
+  {
+    "id": "action_plan",
+    "file": "assets/action_plan.webp",
+    "mime": "image/webp",
+    "bytes": 12384,
+    "sha256": "b25a702852039ef67d62677fef00901a07a2a975d9cf03674535f081dd6d67df"
+  },
+  {
+    "id": "action_plan_remaining",
+    "file": "assets/action_plan_remaining.webp",
+    "mime": "image/webp",
+    "bytes": 20240,
+    "sha256": "db08846b5461804089f4286e7a5d806ea5beec3dbd6d1c0ad6ad23f66b40b83b"
+  },
+  {
+    "id": "action_record_completion",
+    "file": "assets/action_record_completion.webp",
+    "mime": "image/webp",
+    "bytes": 19728,
+    "sha256": "e4404b7fd6efa5839b0076f9e392bb0a5b2727f20ef718922c9e3634c428b058"
+  },
+  {
+    "id": "action_select_multiple",
+    "file": "assets/action_select_multiple.webp",
+    "mime": "image/webp",
+    "bytes": 19854,
+    "sha256": "c3e717f082f1bd34420dd0acf0551c92bff1d586b90857c3f2926c729438b13f"
+  },
+  {
+    "id": "action_skip",
+    "file": "assets/action_skip.webp",
+    "mime": "image/webp",
+    "bytes": 13032,
+    "sha256": "5e6ed1c67319694f0246a562fc6971e9232e0ff67c5cf59bbee650a1c1de37eb"
+  },
+  {
+    "id": "area_status_dormant",
+    "file": "assets/area_status_dormant.webp",
+    "mime": "image/webp",
+    "bytes": 17326,
+    "sha256": "4ae26af214d8d527b7d955e08a0013702d1c2aa1f509f0b1f19ecdcaf0b5f222"
+  },
+  {
+    "id": "area_status_light_activity",
+    "file": "assets/area_status_light_activity.webp",
+    "mime": "image/webp",
+    "bytes": 19760,
+    "sha256": "995bf5f04639f2a500deb85a4cf4c1de4aac6bd3da31f8deb6adb06e1a900637"
+  },
+  {
+    "id": "area_status_maintaining",
+    "file": "assets/area_status_maintaining.webp",
+    "mime": "image/webp",
+    "bytes": 18608,
+    "sha256": "1ab392c4db97f6a61d0542a1f4976df96452aca6bce3c7804957f7d6a61d052d"
+  },
+  {
+    "id": "area_status_needs_focus",
+    "file": "assets/area_status_needs_focus.webp",
+    "mime": "image/webp",
+    "bytes": 20488,
+    "sha256": "9a5e5e7d11abfa64aaae9e8714cf016bba2010f34d39d64f13178d1a583bfc08"
+  },
+  {
+    "id": "area_status_quiet",
+    "file": "assets/area_status_quiet.webp",
+    "mime": "image/webp",
+    "bytes": 21394,
+    "sha256": "31ec77d7a8611dd1cc4cf8e4232e63b480180f90f4ae2038063817257f16a91b"
+  },
+  {
+    "id": "area_status_strong_momentum",
+    "file": "assets/area_status_strong_momentum.webp",
+    "mime": "image/webp",
+    "bytes": 21044,
+    "sha256": "d5ac5d7fd89b892205f987d121c341e29fb7db20e9c1ad551bfc245dd80601d8"
+  },
+  {
+    "id": "area_status_thriving",
+    "file": "assets/area_status_thriving.webp",
+    "mime": "image/webp",
+    "bytes": 15470,
+    "sha256": "dc408779769b371a1198229b52a038c55dd67757251c760decfb11e880639f7e"
+  },
+  {
+    "id": "avatar",
+    "file": "assets/avatar.webp",
+    "mime": "image/webp",
+    "bytes": 15502,
+    "sha256": "5c981d75d7b5d570d7d90816e6264824db41791d0b5ffd346a93085ff9f0f6cc"
+  },
+  {
+    "id": "badge_balanced",
+    "file": "assets/badge_balanced.webp",
+    "mime": "image/webp",
+    "bytes": 25170,
+    "sha256": "b6e249d70b73a661cb43452b1b395c762b4b9e548f10b6216f95dde75a1dcdce"
+  },
+  {
+    "id": "badge_boundary",
+    "file": "assets/badge_boundary.webp",
+    "mime": "image/webp",
+    "bytes": 25714,
+    "sha256": "9107a440c28e61c35dd1a6c4d94689d47d90c259140ae550dcebdc289e695a46"
+  },
+  {
+    "id": "badge_campfire",
+    "file": "assets/badge_campfire.webp",
+    "mime": "image/webp",
+    "bytes": 23336,
+    "sha256": "dbe672ef7096ffa3fddedcf6704dad85c28bb456afa40ce3355dbfcbf10fb7ec"
+  },
+  {
+    "id": "badge_clear",
+    "file": "assets/badge_clear.webp",
+    "mime": "image/webp",
+    "bytes": 26616,
+    "sha256": "f83a106d47c533fae5cd7ae4a89913073e94cd8e3e47550823607dcf352f4b58"
+  },
+  {
+    "id": "badge_deadline",
+    "file": "assets/badge_deadline.webp",
+    "mime": "image/webp",
+    "bytes": 22216,
+    "sha256": "1f87f2506ff1e06e42c0a6f4e62112c2db0523ef50cb05ea812a424013afece2"
+  },
+  {
+    "id": "badge_first",
+    "file": "assets/badge_first.webp",
+    "mime": "image/webp",
+    "bytes": 25622,
+    "sha256": "4ac8c53a95b79258c56b45c44c86e45e20916369ac61ca43ae720537340fef1f"
+  },
+  {
+    "id": "badge_habit",
+    "file": "assets/badge_habit.webp",
+    "mime": "image/webp",
+    "bytes": 27200,
+    "sha256": "74ff9d6d48a2ae2aa150d78ea63006aa7435ac7c513a2dd06192ecb3f9987bba"
+  },
+  {
+    "id": "badge_loop",
+    "file": "assets/badge_loop.webp",
+    "mime": "image/webp",
+    "bytes": 26802,
+    "sha256": "d4608c183d98f79e31ec6ff8d3209052122fb4e505e7635efbc854e9e95b9e53"
+  },
+  {
+    "id": "badge_momentum",
+    "file": "assets/badge_momentum.webp",
+    "mime": "image/webp",
+    "bytes": 26676,
+    "sha256": "d075a2058aaa5e6ab703e65cd2166f72f5c13f3fc569d6965f59d8acc44bd2a2"
+  },
+  {
+    "id": "badge_pathfinder",
+    "file": "assets/badge_pathfinder.webp",
+    "mime": "image/webp",
+    "bytes": 26256,
+    "sha256": "a1f6f24e3c9aec9bfcb1e348164b09d5b73083ed518f1fe01576ea0574860e46"
+  },
+  {
+    "id": "badge_questmaster",
+    "file": "assets/badge_questmaster.webp",
+    "mime": "image/webp",
+    "bytes": 26374,
+    "sha256": "f6292221ec2bbadff15d4e3680284fa4a281925e9e4069b4eb4ecf8605cd1e77"
+  },
+  {
+    "id": "badge_recovery",
+    "file": "assets/badge_recovery.webp",
+    "mime": "image/webp",
+    "bytes": 21978,
+    "sha256": "f1c067ec2a1df8177fb3d62dfcb28dc73eba2af24b38e641fdc5f7bb026134f7"
+  },
+  {
+    "id": "badge_renewal",
+    "file": "assets/badge_renewal.webp",
+    "mime": "image/webp",
+    "bytes": 24918,
+    "sha256": "075381a0b8076d26348f1b894e65a1a944efec57eaef6b09c7baaadda44d1419"
+  },
+  {
+    "id": "badge_strategic",
+    "file": "assets/badge_strategic.webp",
+    "mime": "image/webp",
+    "bytes": 25166,
+    "sha256": "b19b830c63ae172dbaab01282b12f888633a1d5ce26acea6dcdb53927ef57d06"
+  },
+  {
+    "id": "brand",
+    "file": "assets/brand.webp",
+    "mime": "image/webp",
+    "bytes": 7464,
+    "sha256": "28d05730d98b4ea7be903d7dfe2d738ad54a4e63137398ff23ab2430d7407c48"
+  },
+  {
+    "id": "character_capture",
+    "file": "assets/character_capture.webp",
+    "mime": "image/webp",
+    "bytes": 20954,
+    "sha256": "c55785a5574152ca9bef7b25597f872ffb8bfffdba474b5c8536dad3e2f697be"
+  },
+  {
+    "id": "character_celebrate",
+    "file": "assets/character_celebrate.webp",
+    "mime": "image/webp",
+    "bytes": 21596,
+    "sha256": "56ba047bfbc7ebcf61fe40cc3c98d1b3f0edabebb37403af59055d51c89d7cb9"
+  },
+  {
+    "id": "character_checkpoint",
+    "file": "assets/character_checkpoint.webp",
+    "mime": "image/webp",
+    "bytes": 24080,
+    "sha256": "5baaedc95a7ba04412e260c58564c44d4d4fbfde4af572ef4a9d3141842d14fa"
+  },
+  {
+    "id": "character_focus",
+    "file": "assets/character_focus.webp",
+    "mime": "image/webp",
+    "bytes": 24282,
+    "sha256": "8b22ae9f51fd8c8b091625b2c32eea04975175c06ee41b3ce5e3cf3963e2551e"
+  },
+  {
+    "id": "character_idle",
+    "file": "assets/character_idle.webp",
+    "mime": "image/webp",
+    "bytes": 21010,
+    "sha256": "c30f6da214f034e22e6c7be5bce5596767ba49c143a0351aa3f410c042f091bb"
+  },
+  {
+    "id": "character_plan",
+    "file": "assets/character_plan.webp",
+    "mime": "image/webp",
+    "bytes": 22228,
+    "sha256": "7e245d99abbfe42e8113d2ea11d2b495e31c9807396c2414a0e34e56f3e2dd2f"
+  },
+  {
+    "id": "character_recover",
+    "file": "assets/character_recover.webp",
+    "mime": "image/webp",
+    "bytes": 18748,
+    "sha256": "4e640c4b236d4166a39e1326aa97f59ab5806099a2600d0ed48fdf84dcae94e5"
+  },
+  {
+    "id": "character_reflect",
+    "file": "assets/character_reflect.webp",
+    "mime": "image/webp",
+    "bytes": 26864,
+    "sha256": "58d36d2f34883c51e0006215b415edb3f28621d32f861dd9394dbb865399a531"
+  },
+  {
+    "id": "character_renew",
+    "file": "assets/character_renew.webp",
+    "mime": "image/webp",
+    "bytes": 23682,
+    "sha256": "1d9ef817a30c87f5128f856142b2afaa5a3e9149b1c72366442ffd4093644799"
+  },
+  {
+    "id": "character_reschedule",
+    "file": "assets/character_reschedule.webp",
+    "mime": "image/webp",
+    "bytes": 25064,
+    "sha256": "254c2f94d8dbdbfec7dfd3fcadbe8230f8c3cb29112f133be0b028c103272b26"
+  },
+  {
+    "id": "character_risk",
+    "file": "assets/character_risk.webp",
+    "mime": "image/webp",
+    "bytes": 21750,
+    "sha256": "f1bce653015634eeabfd0170d4519a75ec11804e155c27153d7197aaf1f48b41"
+  },
+  {
+    "id": "character_think",
+    "file": "assets/character_think.webp",
+    "mime": "image/webp",
+    "bytes": 18664,
+    "sha256": "f677e0e8da8f91a1682bdfd4bd67b8a4456e2a0fe2a19ebd9833d428f877e2b3"
+  },
+  {
+    "id": "character_walk",
+    "file": "assets/character_walk.webp",
+    "mime": "image/webp",
+    "bytes": 23324,
+    "sha256": "f182b87d1bd583c1c9980a1c8d9f5df8df150786341e74b0069d5b9c23895d45"
+  },
+  {
+    "id": "clock_completed_early",
+    "file": "assets/clock_completed_early.webp",
+    "mime": "image/webp",
+    "bytes": 12888,
+    "sha256": "f470675f81d63d6b7444c18f90e8dc449a42f1300ebe97d9b136a855918561e8"
+  },
+  {
+    "id": "clock_completed_late",
+    "file": "assets/clock_completed_late.webp",
+    "mime": "image/webp",
+    "bytes": 20556,
+    "sha256": "b11f11e74544d172741474f1f3e12c9ea14bc0ec8065ff3242e8a05079614ece"
+  },
+  {
+    "id": "clock_current",
+    "file": "assets/clock_current.webp",
+    "mime": "image/webp",
+    "bytes": 17412,
+    "sha256": "f3899ce908fb7c833fd7ca41db1d7e151e1d3b7fae2445c830a41d4dd5c59e7d"
+  },
+  {
+    "id": "clock_due",
+    "file": "assets/clock_due.webp",
+    "mime": "image/webp",
+    "bytes": 23670,
+    "sha256": "3d3828ef5a1b72de7e1ddabcbe0a1fb724d83e03c9cd37a80a1bb90b3b491624"
+  },
+  {
+    "id": "clock_due_soon",
+    "file": "assets/clock_due_soon.webp",
+    "mime": "image/webp",
+    "bytes": 23670,
+    "sha256": "3d3828ef5a1b72de7e1ddabcbe0a1fb724d83e03c9cd37a80a1bb90b3b491624"
+  },
+  {
+    "id": "clock_inactive",
+    "file": "assets/clock_inactive.webp",
+    "mime": "image/webp",
+    "bytes": 15412,
+    "sha256": "721cc2ddb99c49a64c3beb6df9e37169edc0036989910c25dd6baf80ac2b206c"
+  },
+  {
+    "id": "clock_original",
+    "file": "assets/clock_original.webp",
+    "mime": "image/webp",
+    "bytes": 24420,
+    "sha256": "a4551d767218056a285d87c638b1e22422d0ee9784cbd012f08a4cf10611f8c6"
+  },
+  {
+    "id": "clock_overdue",
+    "file": "assets/clock_overdue.webp",
+    "mime": "image/webp",
+    "bytes": 21328,
+    "sha256": "702ee2766d3cd3a0729804126c05009e6f9a0d6a71e7652b4a7f0a07fa354ee6"
+  },
+  {
+    "id": "clock_recovered",
+    "file": "assets/clock_recovered.webp",
+    "mime": "image/webp",
+    "bytes": 22060,
+    "sha256": "4014ff6112a75043d075c159459a4030172f7560623a27e9ccf90a0f86ef8bff"
+  },
+  {
+    "id": "clock_repeated",
+    "file": "assets/clock_repeated.webp",
+    "mime": "image/webp",
+    "bytes": 25434,
+    "sha256": "2ba2842e124db45dcb5131da20f2eaeb1c9ba5e4a127a802c25b84b6fb0ae2f3"
+  },
+  {
+    "id": "cycle_achieved",
+    "file": "assets/cycle_achieved.webp",
+    "mime": "image/webp",
+    "bytes": 130418,
+    "sha256": "3f343ead4c98b4b951699e5615d7ce4cfc14ed9d56f9d5c5f1a8ac9006481fec"
+  },
+  {
+    "id": "cycle_at_risk",
+    "file": "assets/cycle_at_risk.webp",
+    "mime": "image/webp",
+    "bytes": 104706,
+    "sha256": "90a05f6c2b610b54ca0db300df5cea2b2e4585968be9f64fa37ed9c270eeb9a5"
+  },
+  {
+    "id": "cycle_catch_up",
+    "file": "assets/cycle_catch_up.webp",
+    "mime": "image/webp",
+    "bytes": 107736,
+    "sha256": "2ff5bc369b863b1a3c84cc9e92738a1fdaeaa619e21f4fecb51f919fe03e26c9"
+  },
+  {
+    "id": "cycle_on_pace",
+    "file": "assets/cycle_on_pace.webp",
+    "mime": "image/webp",
+    "bytes": 109940,
+    "sha256": "a4558922466cdc5f32aae5c2e49f715a92964078dd321e92400e5a47cc7084f9"
+  },
+  {
+    "id": "decision_archived",
+    "file": "assets/decision_archived.webp",
+    "mime": "image/webp",
+    "bytes": 32132,
+    "sha256": "87f7ea18faa3416baff53508efc8dcdc13f689d3c9b8b62916d93019609abc96"
+  },
+  {
+    "id": "decision_converted",
+    "file": "assets/decision_converted.webp",
+    "mime": "image/webp",
+    "bytes": 36424,
+    "sha256": "56690ec85dd3017894d5abab49818215c4fbfc55a010ed945786c919527052c2"
+  },
+  {
+    "id": "decision_criteria",
+    "file": "assets/decision_criteria.webp",
+    "mime": "image/webp",
+    "bytes": 35710,
+    "sha256": "e9ef39f68a260b1b2c99ec49d9e16d8438fb2b73bc1b29f53162692413eba61a"
+  },
+  {
+    "id": "decision_incubated",
+    "file": "assets/decision_incubated.webp",
+    "mime": "image/webp",
+    "bytes": 35042,
+    "sha256": "fcf530141c168fc597ad1c9ead3b803781931b95fe4dfd11168d4b20b6169951"
+  },
+  {
+    "id": "decision_reached",
+    "file": "assets/decision_reached.webp",
+    "mime": "image/webp",
+    "bytes": 35948,
+    "sha256": "9cad8cd518652758120de6daf67b7f70d845269ea5df4ae11d3b97c68ce25a38"
+  },
+  {
+    "id": "discovery_consult",
+    "file": "assets/discovery_consult.webp",
+    "mime": "image/webp",
+    "bytes": 30890,
+    "sha256": "4637e02a72c8dd388962b5f117464e64c7ba1cf409e2242f857da8bdeb9dddf1"
+  },
+  {
+    "id": "discovery_evidence",
+    "file": "assets/discovery_evidence.webp",
+    "mime": "image/webp",
+    "bytes": 26166,
+    "sha256": "8417ba5a59774a1b737ad32ecb89750c944043cfaf3306a9ab8a922ea75ffbe5"
+  },
+  {
+    "id": "discovery_experiment",
+    "file": "assets/discovery_experiment.webp",
+    "mime": "image/webp",
+    "bytes": 33118,
+    "sha256": "d68d6453281bfbacfdfc2b4a62114e695f8e6829ab5656472c7ddb8138699f54"
+  },
+  {
+    "id": "discovery_new",
+    "file": "assets/discovery_new.webp",
+    "mime": "image/webp",
+    "bytes": 31512,
+    "sha256": "0e7482d2078cd482bfd9c028ccff16bbb2dec3f435c529df7452e69159ccf1c1"
+  },
+  {
+    "id": "discovery_option",
+    "file": "assets/discovery_option.webp",
+    "mime": "image/webp",
+    "bytes": 25508,
+    "sha256": "529e29840f6beb8ccff6e4b8ae684de03217a92d99a5abff53f7b696eb5e6f06"
+  },
+  {
+    "id": "discovery_question",
+    "file": "assets/discovery_question.webp",
+    "mime": "image/webp",
+    "bytes": 32552,
+    "sha256": "fcff2de25791002e141e71188f4eefff08b66a33be83452254c406d03fc0e33b"
+  },
+  {
+    "id": "discovery_research",
+    "file": "assets/discovery_research.webp",
+    "mime": "image/webp",
+    "bytes": 30386,
+    "sha256": "31eb037c3e0a44504bbd9acaa074ab59c91c2f15cb0e5d801b6220ed9b7aad5d"
+  },
+  {
+    "id": "discovery_step",
+    "file": "assets/discovery_step.webp",
+    "mime": "image/webp",
+    "bytes": 30066,
+    "sha256": "79dd24a04f08db70e81ef21c3a91585c30cfea740fbb2a9b7982a7e2a376873a"
+  },
+  {
+    "id": "goal_blocked",
+    "file": "assets/goal_blocked.webp",
+    "mime": "image/webp",
+    "bytes": 27310,
+    "sha256": "4e0465daf07c510da4c0ddafbd05e28b36c9e0d9244007685f77f8e4d61e851a"
+  },
+  {
+    "id": "goal_completed",
+    "file": "assets/goal_completed.webp",
+    "mime": "image/webp",
+    "bytes": 35052,
+    "sha256": "cb7844d1fdd96359e5b26539a1813a8e80c5d15d00544423393089750820fc7f"
+  },
+  {
+    "id": "goal_goal",
+    "file": "assets/goal_goal.webp",
+    "mime": "image/webp",
+    "bytes": 27066,
+    "sha256": "ed701a2884eeb71e472caa748c2ecc41ca39aec45da465804adcb5dcb917082f"
+  },
+  {
+    "id": "goal_major",
+    "file": "assets/goal_major.webp",
+    "mime": "image/webp",
+    "bytes": 30382,
+    "sha256": "10144e854b59f65339d043b5db45dfc55638989095c216e267764eb8df06bca3"
+  },
+  {
+    "id": "goal_milestone",
+    "file": "assets/goal_milestone.webp",
+    "mime": "image/webp",
+    "bytes": 29888,
+    "sha256": "9bd18a43ce506c9000dc480954b30892166404d8bd85e0db800f60f17e580ab2"
+  },
+  {
+    "id": "goal_next",
+    "file": "assets/goal_next.webp",
+    "mime": "image/webp",
+    "bytes": 24886,
+    "sha256": "4d40013ad1fa67b2c9b22c0318c28552dfff4d0130bf3b5d3ab0e4008546238d"
+  },
+  {
+    "id": "goal_paused",
+    "file": "assets/goal_paused.webp",
+    "mime": "image/webp",
+    "bytes": 27328,
+    "sha256": "b60e825a9d31f3dc8aa8bd43e2e6807ae2088ae2b76bb123b99f6612a6133761"
+  },
+  {
+    "id": "goal_progress",
+    "file": "assets/goal_progress.webp",
+    "mime": "image/webp",
+    "bytes": 27376,
+    "sha256": "d99e601d75476530f808676a35a75a032001772db92d73f16bd3a6b38990aadb"
+  },
+  {
+    "id": "goal_released",
+    "file": "assets/goal_released.webp",
+    "mime": "image/webp",
+    "bytes": 30566,
+    "sha256": "07386a3eda3d7b26c362ea99a46058726ad3e0f61aef7298f7cb404ad1d5f3cc"
+  },
+  {
+    "id": "habit_avoid",
+    "file": "assets/habit_avoid.webp",
+    "mime": "image/webp",
+    "bytes": 27478,
+    "sha256": "8282ba9382b22dc0a09a31c0392d29e67e055f21807f7d9794ce41b04e8a6c4e"
+  },
+  {
+    "id": "habit_build",
+    "file": "assets/habit_build.webp",
+    "mime": "image/webp",
+    "bytes": 25040,
+    "sha256": "95711d936df23beb8cc7848f69205d47d347df356f8fcf2541ca0b6cc7a6efea"
+  },
+  {
+    "id": "habit_cycle_achieved",
+    "file": "assets/habit_cycle_achieved.webp",
+    "mime": "image/webp",
+    "bytes": 16138,
+    "sha256": "2e84a2c250920a95941ff5c3db41ddabd49414ce5e70cedafbd8ccf0866d2912"
+  },
+  {
+    "id": "habit_cycle_at_risk",
+    "file": "assets/habit_cycle_at_risk.webp",
+    "mime": "image/webp",
+    "bytes": 12906,
+    "sha256": "656e591f012dd6758e38e72b7eb0795d21df09e66e6f134f5128c9614a24b014"
+  },
+  {
+    "id": "habit_cycle_catch_up",
+    "file": "assets/habit_cycle_catch_up.webp",
+    "mime": "image/webp",
+    "bytes": 14736,
+    "sha256": "32831d22f089ae684a48e02f711c7bd918f52a60ec6e7c4910b15e669b2fc717"
+  },
+  {
+    "id": "habit_cycle_on_pace",
+    "file": "assets/habit_cycle_on_pace.webp",
+    "mime": "image/webp",
+    "bytes": 13522,
+    "sha256": "83f325fd755d68185d34310ba233203c69f45b44ab27bd400ddc37f2c659d374"
+  },
+  {
+    "id": "habit_embedded",
+    "file": "assets/habit_embedded.webp",
+    "mime": "image/webp",
+    "bytes": 31674,
+    "sha256": "7f8fd9b3e7cf8992d84b956a5219515727aa0b0b0e4a6a1309a869c067d43d25"
+  },
+  {
+    "id": "habit_forming",
+    "file": "assets/habit_forming.webp",
+    "mime": "image/webp",
+    "bytes": 24734,
+    "sha256": "c5912971da9cdbd9e840da8637229a9f5c23e0b1125a2cdfcd0f3bf21bf9fbe2"
+  },
+  {
+    "id": "habit_fragile",
+    "file": "assets/habit_fragile.webp",
+    "mime": "image/webp",
+    "bytes": 23926,
+    "sha256": "ec0a306266a870427a4337ecd490e9ba20b883432c6f3f52948ba2dbd1dcbf85"
+  },
+  {
+    "id": "habit_interrupted",
+    "file": "assets/habit_interrupted.webp",
+    "mime": "image/webp",
+    "bytes": 32062,
+    "sha256": "f902c04eeb7beb8b24024e1eab8236f3574e8ec2698ff50f44c7d8f91a48ad0d"
+  },
+  {
+    "id": "habit_launching",
+    "file": "assets/habit_launching.webp",
+    "mime": "image/webp",
+    "bytes": 27936,
+    "sha256": "a5c00e55cf64b3e1c32e8e9b9cb0c90bd08c05e27c8505329bba5a8b6bcaaf15"
+  },
+  {
+    "id": "habit_limit",
+    "file": "assets/habit_limit.webp",
+    "mime": "image/webp",
+    "bytes": 28180,
+    "sha256": "89ab6265883c4ba33c4b7fd1eb85a7f9e4e33b73d9edc3e4f171214f9b69f16a"
+  },
+  {
+    "id": "habit_on_track",
+    "file": "assets/habit_on_track.webp",
+    "mime": "image/webp",
+    "bytes": 31328,
+    "sha256": "72bc6251baa8235752bd2c15a293b8d6ea995e99ec3d4a0a2754d28bcdad805d"
+  },
+  {
+    "id": "habit_paused",
+    "file": "assets/habit_paused.webp",
+    "mime": "image/webp",
+    "bytes": 25768,
+    "sha256": "0085094625a2ed5cecbf9a35af4a87013e8e152be598323ae8f412d09507db54"
+  },
+  {
+    "id": "habit_recovering",
+    "file": "assets/habit_recovering.webp",
+    "mime": "image/webp",
+    "bytes": 29286,
+    "sha256": "6d522bad41f4d5ca8f11804a1e80b1def9ff73ef68269fb501cd5a441c29ae32"
+  },
+  {
+    "id": "habit_retired",
+    "file": "assets/habit_retired.webp",
+    "mime": "image/webp",
+    "bytes": 27552,
+    "sha256": "01612e62e2e5e1ed059176efbadceffd13020afcf7b04d1d978173860aabf95a"
+  },
+  {
+    "id": "habit_seed",
+    "file": "assets/habit_seed.webp",
+    "mime": "image/webp",
+    "bytes": 25340,
+    "sha256": "8198edc71c0a0ed03c54b84b11138695e3acf0417b2d55f15ce8a92790662735"
+  },
+  {
+    "id": "habit_stable",
+    "file": "assets/habit_stable.webp",
+    "mime": "image/webp",
+    "bytes": 26902,
+    "sha256": "b1f8dd9387a5e29028ac0e11fc01e91b43cf454c43df67a238b4eebd61cca02d"
+  },
+  {
+    "id": "habit_strengthening",
+    "file": "assets/habit_strengthening.webp",
+    "mime": "image/webp",
+    "bytes": 29518,
+    "sha256": "ac8e5a11edefe527e6b6c0beaee3c70adec486a554be9f74facb29a1012828bf"
+  },
+  {
+    "id": "habit_type_avoid_limit",
+    "file": "assets/habit_type_avoid_limit.webp",
+    "mime": "image/webp",
+    "bytes": 127166,
+    "sha256": "78bbd7a4772839c410e24e65d7047ce0c033b7a74721d7f8ab71e078cfa77465"
+  },
+  {
+    "id": "habit_type_numeric",
+    "file": "assets/habit_type_numeric.webp",
+    "mime": "image/webp",
+    "bytes": 121202,
+    "sha256": "3d34239da92f7b5027391e84a8375e96a63c5657d1b5b5bf7a9a59551df356a8"
+  },
+  {
+    "id": "habit_type_occurrence",
+    "file": "assets/habit_type_occurrence.webp",
+    "mime": "image/webp",
+    "bytes": 135320,
+    "sha256": "f43a3a8f57c253a28873f57b672581519b54b79aef221dad116942f57c9b344b"
+  },
+  {
+    "id": "importance_1",
+    "file": "assets/importance_1.webp",
+    "mime": "image/webp",
+    "bytes": 42484,
+    "sha256": "61331a6fe38ab2ebfc26f284f2d741e6056784f5e5fb241ca254273dab73481d"
+  },
+  {
+    "id": "importance_2",
+    "file": "assets/importance_2.webp",
+    "mime": "image/webp",
+    "bytes": 66226,
+    "sha256": "7b8c47f7a15c828678b4b70c8850bf093d29329e27c7c0e1423e8890e8b947eb"
+  },
+  {
+    "id": "importance_3",
+    "file": "assets/importance_3.webp",
+    "mime": "image/webp",
+    "bytes": 80402,
+    "sha256": "17dabb85921d15f4dca19631b4aa2d2a1eb77ae1541725d4fc2e0f408b98b081"
+  },
+  {
+    "id": "journal",
+    "file": "assets/journal.webp",
+    "mime": "image/webp",
+    "bytes": 9884,
+    "sha256": "9f8afc33f1e98fcddfe0fdf2d33ef3965578e734ef41e37196dbf2304877b8e6"
+  },
+  {
+    "id": "metric_active_days",
+    "file": "assets/metric_active_days.webp",
+    "mime": "image/webp",
+    "bytes": 7374,
+    "sha256": "40a1b3f945c15418efd4bc903a6125f207d226ec98faef9415ed15e81dcb5b77"
+  },
+  {
+    "id": "metric_activities_closed",
+    "file": "assets/metric_activities_closed.webp",
+    "mime": "image/webp",
+    "bytes": 22216,
+    "sha256": "586304c4615f177451bb2f2bdad882ccddc00c1ae06af5c35ca6ac2512f839e9"
+  },
+  {
+    "id": "metric_areas_momentum",
+    "file": "assets/metric_areas_momentum.webp",
+    "mime": "image/webp",
+    "bytes": 34538,
+    "sha256": "c97f19bf92a53d3afc93bd032b6f299e02b1f430c5e5e6a5aa677ab2ebb60d13"
+  },
+  {
+    "id": "metric_habit_targets",
+    "file": "assets/metric_habit_targets.webp",
+    "mime": "image/webp",
+    "bytes": 26590,
+    "sha256": "445ea9c842674858126cbd2a0ee6cc4cda66095bce9b127b219f4e7dd2704b5f"
+  },
+  {
+    "id": "metric_important_moves",
+    "file": "assets/metric_important_moves.webp",
+    "mime": "image/webp",
+    "bytes": 23128,
+    "sha256": "e663035c0d2b820a6b99bca797aad1b750c554e45f4773623e9ea1edd203998e"
+  },
+  {
+    "id": "metric_pace",
+    "file": "assets/metric_pace.webp",
+    "mime": "image/webp",
+    "bytes": 22460,
+    "sha256": "cff0a865134d22e70fe18a8fea8e64d9d325b42bf66e819d5f39bc81368a023e"
+  },
+  {
+    "id": "metric_recovered",
+    "file": "assets/metric_recovered.webp",
+    "mime": "image/webp",
+    "bytes": 23880,
+    "sha256": "cd61336b050c7625ed94a6349cabef137f80aeab3d598ab9167b0e46f8f0c65c"
+  },
+  {
+    "id": "mode_achieve",
+    "file": "assets/mode_achieve.webp",
+    "mime": "image/webp",
+    "bytes": 14878,
+    "sha256": "9e61796ad393c9d64f195efdb91b386d0da2bb853ab92bc849217e787a357c10"
+  },
+  {
+    "id": "mode_explore",
+    "file": "assets/mode_explore.webp",
+    "mime": "image/webp",
+    "bytes": 15730,
+    "sha256": "afdbfaf1e5a4c06ea4653017956bfb3dffe593060501c953e9e1f88c569355b8"
+  },
+  {
+    "id": "mode_renew",
+    "file": "assets/mode_renew.webp",
+    "mime": "image/webp",
+    "bytes": 29080,
+    "sha256": "e19a0b2b36f38a0ad207336e288eb2c688a1c846254eae591d2b4c6b8c8d6bd3"
+  },
+  {
+    "id": "mode_resolve",
+    "file": "assets/mode_resolve.webp",
+    "mime": "image/webp",
+    "bytes": 15446,
+    "sha256": "e7c18aa5d6d5a0b49d4f6c1c1cbcdd3f4f215b6186db379618ff80e525bd5911"
+  },
+  {
+    "id": "mode_sustain",
+    "file": "assets/mode_sustain.webp",
+    "mime": "image/webp",
+    "bytes": 19072,
+    "sha256": "83047168dd70523269414a5070a4bf3041fdfbdfd10e74c6584cf7c8dac8ccd5"
+  },
+  {
+    "id": "object_action",
+    "file": "assets/object_action.webp",
+    "mime": "image/webp",
+    "bytes": 12846,
+    "sha256": "e6a74cf35b46409f75fd2f2c80b25eb176904a6182b7254e58edfc1ce37440a3"
+  },
+  {
+    "id": "object_discovery",
+    "file": "assets/object_discovery.webp",
+    "mime": "image/webp",
+    "bytes": 13680,
+    "sha256": "a835348c4352b5d5df3d27660a9a7a5f9c81833d33143b476b0941e51647070b"
+  },
+  {
+    "id": "object_event",
+    "file": "assets/object_event.webp",
+    "mime": "image/webp",
+    "bytes": 14474,
+    "sha256": "9261a0d1f869854fd5d3043b5a07332ec17c663553d253b4fd5774d8c8261d7e"
+  },
+  {
+    "id": "object_goal",
+    "file": "assets/object_goal.webp",
+    "mime": "image/webp",
+    "bytes": 13630,
+    "sha256": "5bacf343770e56e575bcd8da291a6c2a7c716251c82fa5c92d46110c410e7f35"
+  },
+  {
+    "id": "object_habit",
+    "file": "assets/object_habit.webp",
+    "mime": "image/webp",
+    "bytes": 16220,
+    "sha256": "ae701bafa4bbd7b0f025f99e448946bcb297b2c0c4f86e1a0c092268827714eb"
+  },
+  {
+    "id": "object_inbox",
+    "file": "assets/object_inbox.webp",
+    "mime": "image/webp",
+    "bytes": 14344,
+    "sha256": "2144de2c74cd01ef9d28ca353281ea7e4c60412759469be99162db5c454fd790"
+  },
+  {
+    "id": "object_reference",
+    "file": "assets/object_reference.webp",
+    "mime": "image/webp",
+    "bytes": 19668,
+    "sha256": "ce8d82df69e0bd595ff2f275fbc0e8393ba1c7ce07d0fec43c2c4430eb0e4371"
+  },
+  {
+    "id": "object_review",
+    "file": "assets/object_review.webp",
+    "mime": "image/webp",
+    "bytes": 12166,
+    "sha256": "4873c33cf246a45ba37264c21f3fa2a4666350d786ab18494832dc286bff4f3c"
+  },
+  {
+    "id": "occurrence_completed",
+    "file": "assets/occurrence_completed.webp",
+    "mime": "image/webp",
+    "bytes": 101748,
+    "sha256": "c726e66ec53f7f6105d52f7bdeeb691aa27b29fa4c58116b63605b939674310b"
+  },
+  {
+    "id": "occurrence_extra",
+    "file": "assets/occurrence_extra.webp",
+    "mime": "image/webp",
+    "bytes": 84436,
+    "sha256": "dbb5be9199e40f86f84af0d009fc5530c493678172314bc2498c0c831f917442"
+  },
+  {
+    "id": "occurrence_missed",
+    "file": "assets/occurrence_missed.webp",
+    "mime": "image/webp",
+    "bytes": 109922,
+    "sha256": "ae08cf80e7f2298b0a4f79c9a2bf4aed95d4ca5337da63b247812c92be8c5cb8"
+  },
+  {
+    "id": "occurrence_multiple",
+    "file": "assets/occurrence_multiple.webp",
+    "mime": "image/webp",
+    "bytes": 10260,
+    "sha256": "214bb97f688a4db4df95b37a9db914d1766f6f1b8e6acfe9853af472d6147c49"
+  },
+  {
+    "id": "occurrence_no_plan",
+    "file": "assets/occurrence_no_plan.webp",
+    "mime": "image/webp",
+    "bytes": 52340,
+    "sha256": "084cfd0d24188d5e0f88725ebb656974f21f954defe75462130ab3f5fc1aa3a8"
+  },
+  {
+    "id": "occurrence_planned",
+    "file": "assets/occurrence_planned.webp",
+    "mime": "image/webp",
+    "bytes": 75712,
+    "sha256": "22ee3d5cf62795afb3c9ff7ef3282169dce85547e8a8b760bc238953066fa092"
+  },
+  {
+    "id": "occurrence_skipped",
+    "file": "assets/occurrence_skipped.webp",
+    "mime": "image/webp",
+    "bytes": 93194,
+    "sha256": "1377f5f3ee28dd02b8cb6c29a1f1b086c5a505aeecb11ea10e73c2157e59923b"
+  },
+  {
+    "id": "on_time",
+    "file": "assets/on_time.webp",
+    "mime": "image/webp",
+    "bytes": 8024,
+    "sha256": "4f0dec7d690b3825cd9d611ac26d479bea416363ec99c3d4a43fdafb4eee92a5"
+  },
+  {
+    "id": "postponed",
+    "file": "assets/postponed.webp",
+    "mime": "image/webp",
+    "bytes": 16476,
+    "sha256": "8225eaba9a2ac0048231c861199f5d4bd36e2179926b8598df1575a729e8a0e7"
+  },
+  {
+    "id": "priority_act",
+    "file": "assets/priority_act.webp",
+    "mime": "image/webp",
+    "bytes": 16902,
+    "sha256": "32515d15951e83f5db9adb7651c2b9801c159526b94ac6f1d9b6bb6f7b91f131"
+  },
+  {
+    "id": "priority_advance",
+    "file": "assets/priority_advance.webp",
+    "mime": "image/webp",
+    "bytes": 14664,
+    "sha256": "58fd0872b77da5700e9d0cdfd6be3b801766fecb6f46c87ffc58de3235afce42"
+  },
+  {
+    "id": "priority_clear",
+    "file": "assets/priority_clear.webp",
+    "mime": "image/webp",
+    "bytes": 24776,
+    "sha256": "afc437fc0ff191cdb08a4f469360fb43ec75c70d617d340c26b28e45ce088da6"
+  },
+  {
+    "id": "priority_contain",
+    "file": "assets/priority_contain.webp",
+    "mime": "image/webp",
+    "bytes": 21924,
+    "sha256": "542f41c49726cf6581b4e3f9a9b3fae473826bef4de21252262c1a6dd8f5261e"
+  },
+  {
+    "id": "priority_defer",
+    "file": "assets/priority_defer.webp",
+    "mime": "image/webp",
+    "bytes": 22008,
+    "sha256": "8b48884cedea2767585c967250a7d15ed4718a701be4fec3d35916002dd583f6"
+  },
+  {
+    "id": "priority_incubate",
+    "file": "assets/priority_incubate.webp",
+    "mime": "image/webp",
+    "bytes": 24304,
+    "sha256": "1e37b3d8d47cc7b00eea894eda7e169f073accfddbe46b5c7c2075aad2483e68"
+  },
+  {
+    "id": "priority_plan",
+    "file": "assets/priority_plan.webp",
+    "mime": "image/webp",
+    "bytes": 24166,
+    "sha256": "7c77676b80df80fe4a8554289004ae44379f30d73e26f969f9120ebba8bf496f"
+  },
+  {
+    "id": "priority_protect",
+    "file": "assets/priority_protect.webp",
+    "mime": "image/webp",
+    "bytes": 15108,
+    "sha256": "bf81791f30c731bc4f4605cbbf279a50ec6096ae75fbaa4662e59ad8c9e10653"
+  },
+  {
+    "id": "priority_queue",
+    "file": "assets/priority_queue.webp",
+    "mime": "image/webp",
+    "bytes": 19136,
+    "sha256": "c1259b76ede4de33c4940bae950d5749651933f4dd043c94da3e42164641e0da"
+  },
+  {
+    "id": "rank_1",
+    "file": "assets/rank_1.webp",
+    "mime": "image/webp",
+    "bytes": 132020,
+    "sha256": "2de329a75b34edb6c8dacfdd023a1c87a2b0cd16d77b935c9805da8c38cb269b"
+  },
+  {
+    "id": "rank_10",
+    "file": "assets/rank_10.webp",
+    "mime": "image/webp",
+    "bytes": 130410,
+    "sha256": "76f309b65b51413c432151b9a6f4f0b8d915a38167f55d162ee623404a234e58"
+  },
+  {
+    "id": "rank_2",
+    "file": "assets/rank_2.webp",
+    "mime": "image/webp",
+    "bytes": 133862,
+    "sha256": "c6e2b58387a5e07866a85676ac32f6a4495ec9b8d244c3ab2711d98ae9864857"
+  },
+  {
+    "id": "rank_3",
+    "file": "assets/rank_3.webp",
+    "mime": "image/webp",
+    "bytes": 131442,
+    "sha256": "08abe76202c4257d521eaed4cd9f8426122790592cc63531ad49a49b8b9bccf2"
+  },
+  {
+    "id": "rank_4",
+    "file": "assets/rank_4.webp",
+    "mime": "image/webp",
+    "bytes": 125220,
+    "sha256": "6a5545b3e23a3c758fb63d4b9c302bff025f37acf6f370aa5a78d4fe5148c85d"
+  },
+  {
+    "id": "rank_5",
+    "file": "assets/rank_5.webp",
+    "mime": "image/webp",
+    "bytes": 113998,
+    "sha256": "57e050bbb16196eefabd9b09ffa2d04ef77b810b58841a46b585b31d8113d481"
+  },
+  {
+    "id": "rank_6",
+    "file": "assets/rank_6.webp",
+    "mime": "image/webp",
+    "bytes": 132770,
+    "sha256": "efdc57a8e8650f518074f1fce0c3acfd0c6d7ded46b1fc695f57b74576c13832"
+  },
+  {
+    "id": "rank_7",
+    "file": "assets/rank_7.webp",
+    "mime": "image/webp",
+    "bytes": 136538,
+    "sha256": "15625cc56cc0f76b5d60767250c29562edb87906d8d8c8b118b7403293743636"
+  },
+  {
+    "id": "rank_8",
+    "file": "assets/rank_8.webp",
+    "mime": "image/webp",
+    "bytes": 140728,
+    "sha256": "7efe34f3a3abe57fee41681bdb29dadb19ccf4ac744a2ce1da45a3d4acee2830"
+  },
+  {
+    "id": "rank_9",
+    "file": "assets/rank_9.webp",
+    "mime": "image/webp",
+    "bytes": 121768,
+    "sha256": "f229598c882140e19198bb9ad531d5797c7e1b39a663a4d48fae836da233038b"
+  },
+  {
+    "id": "realm_family",
+    "file": "assets/realm_family.webp",
+    "mime": "image/webp",
+    "bytes": 15480,
+    "sha256": "9e98b772715093d411431416fff09b1d468a897b552a3f70385d08be007016f5"
+  },
+  {
+    "id": "realm_financial",
+    "file": "assets/realm_financial.webp",
+    "mime": "image/webp",
+    "bytes": 16630,
+    "sha256": "4575104f5990f4a41359c2bb89a2801c3b716424053fc2a31ca86bb5e0cd3460"
+  },
+  {
+    "id": "realm_health",
+    "file": "assets/realm_health.webp",
+    "mime": "image/webp",
+    "bytes": 17466,
+    "sha256": "330defad11c458fe3f5ca75ca76406309879a9f1f15363dc25ed6140239e8a7c"
+  },
+  {
+    "id": "realm_hm",
+    "file": "assets/realm_hm.webp",
+    "mime": "image/webp",
+    "bytes": 19006,
+    "sha256": "9ba47739e9aac8ac2f437f7c5dd7acf0bbd420fb91cbf5982221180c81914522"
+  },
+  {
+    "id": "realm_professional",
+    "file": "assets/realm_professional.webp",
+    "mime": "image/webp",
+    "bytes": 16030,
+    "sha256": "ba3fb9f545d1ee4d41d8fec9170e679b8f626872e482734120f3ebc9cf8ee26d"
+  },
+  {
+    "id": "realm_renew",
+    "file": "assets/realm_renew.webp",
+    "mime": "image/webp",
+    "bytes": 15740,
+    "sha256": "02ab968ac42a334a8a75dd531c21f5decddc5cf61ec74e0979b7771d48e626de"
+  },
+  {
+    "id": "realm_side_hustle",
+    "file": "assets/realm_side_hustle.webp",
+    "mime": "image/webp",
+    "bytes": 22572,
+    "sha256": "3ac8afbd78de4072b33f35b1804465478e571081b4d3b375d51256f68a58f56b"
+  },
+  {
+    "id": "realm_social",
+    "file": "assets/realm_social.webp",
+    "mime": "image/webp",
+    "bytes": 23852,
+    "sha256": "47e2560052121ab95b486b07e0c7c50c07b543d866f4d26b771757c39346a1b6"
+  },
+  {
+    "id": "recognition_area_flourishing",
+    "file": "assets/recognition_area_flourishing.webp",
+    "mime": "image/webp",
+    "bytes": 62236,
+    "sha256": "3dd14693dc9124ea0eb66f7c290edb30d33db2e5cd7f8b0b4a3e81615f33d153"
+  },
+  {
+    "id": "recognition_balanced",
+    "file": "assets/recognition_balanced.webp",
+    "mime": "image/webp",
+    "bytes": 59522,
+    "sha256": "3cda41b5b73b100b994210c8a7f4296eaf7d6017b11c37ffcbedde92b69c64e3"
+  },
+  {
+    "id": "recognition_balanced_week",
+    "file": "assets/recognition_balanced_week.webp",
+    "mime": "image/webp",
+    "bytes": 60010,
+    "sha256": "304dc1a64a4824a499e4dcdeafe89b6a966d43dea9c8ac13b7939e8970f87c94"
+  },
+  {
+    "id": "recognition_big_move",
+    "file": "assets/recognition_big_move.webp",
+    "mime": "image/webp",
+    "bytes": 57678,
+    "sha256": "b24d36ef46c7bf85177409c416ea46532d0282b3a2697ee32e6c221c261b52f9"
+  },
+  {
+    "id": "recognition_catch_up",
+    "file": "assets/recognition_catch_up.webp",
+    "mime": "image/webp",
+    "bytes": 27882,
+    "sha256": "2755fc281589caf8076f18a2e33f82bbf005cb466c3b5dbf7d21faad02903ec9"
+  },
+  {
+    "id": "recognition_completed_early",
+    "file": "assets/recognition_completed_early.webp",
+    "mime": "image/webp",
+    "bytes": 29898,
+    "sha256": "d3575e33613e14aa000b264e063d99d47038fe6891931666d4a95401ce4a65d1"
+  },
+  {
+    "id": "recognition_consistency",
+    "file": "assets/recognition_consistency.webp",
+    "mime": "image/webp",
+    "bytes": 63092,
+    "sha256": "a09ad62e13b5c61cd6e31348948c152028dd491006d135d0fb2ff8f747fccab9"
+  },
+  {
+    "id": "recognition_consistency_champion",
+    "file": "assets/recognition_consistency_champion.webp",
+    "mime": "image/webp",
+    "bytes": 64272,
+    "sha256": "f6bd14b403502d6c460897a01bad1d58f9c7dc9698045f5f0882253b5ad31720"
+  },
+  {
+    "id": "recognition_dormant_reawakened",
+    "file": "assets/recognition_dormant_reawakened.webp",
+    "mime": "image/webp",
+    "bytes": 67026,
+    "sha256": "70cb6a1cdd1db10791d267b185608811e71e84943621ca8365f66bd3ed4a5d63"
+  },
+  {
+    "id": "recognition_goal_achieved",
+    "file": "assets/recognition_goal_achieved.webp",
+    "mime": "image/webp",
+    "bytes": 33384,
+    "sha256": "ebd7444154e7b8d0846691d6bf31c999bd7a4a04843244788fc43b48b4344ede"
+  },
+  {
+    "id": "recognition_pace_increased",
+    "file": "assets/recognition_pace_increased.webp",
+    "mime": "image/webp",
+    "bytes": 56784,
+    "sha256": "a2d2406785b0c59892a4239ee0ca7048012db4da944ad7c4f15efcd2ddf847b6"
+  },
+  {
+    "id": "recognition_recovery",
+    "file": "assets/recognition_recovery.webp",
+    "mime": "image/webp",
+    "bytes": 58848,
+    "sha256": "a7cbf83436a225d8f3b318fdb9b4b6419727b1daeedfd52a188fc1238615c029"
+  },
+  {
+    "id": "recognition_recovery_hero",
+    "file": "assets/recognition_recovery_hero.webp",
+    "mime": "image/webp",
+    "bytes": 59370,
+    "sha256": "a7a822f3b44defe2b3adb212220c0e8ac2f3ff18b4cff36560a1866ffce835af"
+  },
+  {
+    "id": "recognition_streak",
+    "file": "assets/recognition_streak.webp",
+    "mime": "image/webp",
+    "bytes": 50834,
+    "sha256": "4e3d0c03e811d832f2b33a5d0c9d765941394afc145dc478f48d0beece5ab6a9"
+  },
+  {
+    "id": "recognition_streak_builder",
+    "file": "assets/recognition_streak_builder.webp",
+    "mime": "image/webp",
+    "bytes": 51546,
+    "sha256": "51ccbc3ae779a42ee140dc751d4db9db192f8a7348dbad5631cad0303d3d4e12"
+  },
+  {
+    "id": "recurrence_fixed_day",
+    "file": "assets/recurrence_fixed_day.webp",
+    "mime": "image/webp",
+    "bytes": 83204,
+    "sha256": "84002f915b3490bac95a6162548ad3a874d52261ff71288379a8f1416ab7534c"
+  },
+  {
+    "id": "recurrence_manual_cycle",
+    "file": "assets/recurrence_manual_cycle.webp",
+    "mime": "image/webp",
+    "bytes": 94846,
+    "sha256": "a803480efb7d214496c791a4062c34f3a11875a19dae58cec5a813c401264e6c"
+  },
+  {
+    "id": "recurrence_ordinal_weekday",
+    "file": "assets/recurrence_ordinal_weekday.webp",
+    "mime": "image/webp",
+    "bytes": 86622,
+    "sha256": "c310ee1b166997c8123e031e9861278516d53a4476ff056158e27ef88a240801"
+  },
+  {
+    "id": "recurrence_selected_weekdays",
+    "file": "assets/recurrence_selected_weekdays.webp",
+    "mime": "image/webp",
+    "bytes": 92332,
+    "sha256": "8d8e42feecfb3de4c887495b91481698136fd558e0ead262c67776cb596ca920"
+  },
+  {
+    "id": "rescheduled",
+    "file": "assets/rescheduled.webp",
+    "mime": "image/webp",
+    "bytes": 13076,
+    "sha256": "3766df59c0aebfd8de8c3fa3dfd0e5897f490be09f4a8dad3f32e9a1e3b7d92d"
+  },
+  {
+    "id": "resources",
+    "file": "assets/resources.webp",
+    "mime": "image/webp",
+    "bytes": 6912,
+    "sha256": "b6da82daa1f48fa7f1120fe14403d15208ba00263f139c57d5233553fac3715d"
+  },
+  {
+    "id": "risk",
+    "file": "assets/risk.webp",
+    "mime": "image/webp",
+    "bytes": 19968,
+    "sha256": "a9dae15e0cd826354421f9f2e4740c264327b8f2ba3b47bd9ef6c920f2be2851"
+  },
+  {
+    "id": "risk_at_risk",
+    "file": "assets/risk_at_risk.webp",
+    "mime": "image/webp",
+    "bytes": 32184,
+    "sha256": "8f05935237f93fa364a9baa96bfa30024eefa9eb70b2015373de62a08eb6c832"
+  },
+  {
+    "id": "risk_critical",
+    "file": "assets/risk_critical.webp",
+    "mime": "image/webp",
+    "bytes": 29068,
+    "sha256": "916272df60f27a935e4ab23fe79ed3c2aa19cc6b4df9fc506e6d290da1369271"
+  },
+  {
+    "id": "risk_missing_next",
+    "file": "assets/risk_missing_next.webp",
+    "mime": "image/webp",
+    "bytes": 28692,
+    "sha256": "604652832d825e3f8aada07ce7297546c0d071853314989d398e1576f61e4e33"
+  },
+  {
+    "id": "risk_no_execution",
+    "file": "assets/risk_no_execution.webp",
+    "mime": "image/webp",
+    "bytes": 27284,
+    "sha256": "c44c6e332b4bde47dde40649008ec4d0854ab498e98a30d26144165409f09638"
+  },
+  {
+    "id": "risk_repeated",
+    "file": "assets/risk_repeated.webp",
+    "mime": "image/webp",
+    "bytes": 26848,
+    "sha256": "f480bc3ee7f25e142930157f1bfbf03eb5726ad7cb64dd3a5889685adfaaee32"
+  },
+  {
+    "id": "risk_stalled",
+    "file": "assets/risk_stalled.webp",
+    "mime": "image/webp",
+    "bytes": 29980,
+    "sha256": "cdee81aa47026fc1fcefa38d2acefd2bfb999582b9dd295c99a4cb16eb3a0fac"
+  },
+  {
+    "id": "risk_waiting",
+    "file": "assets/risk_waiting.webp",
+    "mime": "image/webp",
+    "bytes": 24438,
+    "sha256": "83c9b1992f5542dd47e82b5594290f8d306aec52ad048515ff982df41b857d11"
+  },
+  {
+    "id": "risk_watch",
+    "file": "assets/risk_watch.webp",
+    "mime": "image/webp",
+    "bytes": 27714,
+    "sha256": "e31e2941876c9a24b033d139dac3f6be6af0a213512b9383b459ea5fe1e5f086"
+  },
+  {
+    "id": "scene_campfire",
+    "file": "assets/scene_campfire.webp",
+    "mime": "image/webp",
+    "bytes": 239716,
+    "sha256": "afd87fbc7c5c4eb9323642167bd632c0b41f7b5818137e61256c3b19ca63d8a3"
+  },
+  {
+    "id": "scene_discovery",
+    "file": "assets/scene_discovery.webp",
+    "mime": "image/webp",
+    "bytes": 219966,
+    "sha256": "5e2b3451d0dbb707f87318a37ca64391b76a54aaa1c63cc5f38bffb263f959a7"
+  },
+  {
+    "id": "scene_goal",
+    "file": "assets/scene_goal.webp",
+    "mime": "image/webp",
+    "bytes": 275994,
+    "sha256": "a987aa90e3bae0384234c8b9844971cb2158d596dc635a9b084a57a37a60666c"
+  },
+  {
+    "id": "scene_habit",
+    "file": "assets/scene_habit.webp",
+    "mime": "image/webp",
+    "bytes": 247604,
+    "sha256": "bccaf9508ad20dec9559ae49db94b5008889df53a7a3c3f58a199940228c8b94"
+  },
+  {
+    "id": "scene_priority",
+    "file": "assets/scene_priority.webp",
+    "mime": "image/webp",
+    "bytes": 177808,
+    "sha256": "c1da25a93fb082c75214c74beaa9805af80d0be4ff27bc3e2d9548885aa219f3"
+  },
+  {
+    "id": "scene_realm",
+    "file": "assets/scene_realm.webp",
+    "mime": "image/webp",
+    "bytes": 232178,
+    "sha256": "c5a3c01894bec06857de8085667631d9b9a325998276dc347f9cbd7857191fe3"
+  },
+  {
+    "id": "scene_renewal",
+    "file": "assets/scene_renewal.webp",
+    "mime": "image/webp",
+    "bytes": 254782,
+    "sha256": "f70efecf59583b24da2cc4b5ea2b42d7e8a6e2299695e0c63b5c7c7ce947239c"
+  },
+  {
+    "id": "scene_today",
+    "file": "assets/scene_today.webp",
+    "mime": "image/webp",
+    "bytes": 149018,
+    "sha256": "f37f2311b6e50e42fb21dde752c48157a205f23da46ec97c3b15b9745abd7518"
+  },
+  {
+    "id": "scene_victory",
+    "file": "assets/scene_victory.webp",
+    "mime": "image/webp",
+    "bytes": 228626,
+    "sha256": "1b1607d883c5f85f4d5e5eb5e973cf6fe97721b86ecd9028ee7c870275011192"
+  },
+  {
+    "id": "settings",
+    "file": "assets/settings.webp",
+    "mime": "image/webp",
+    "bytes": 8738,
+    "sha256": "c7984091aa2f2359781b7a5309229a58479bd5838b3900da55e5ea1989996627"
+  },
+  {
+    "id": "signal_complete",
+    "file": "assets/signal_complete.webp",
+    "mime": "image/webp",
+    "bytes": 3728,
+    "sha256": "41bbecd347f33b59dba46cc3c8e4d3d3fd365ed1c0adada01987ddd46f41bdaf"
+  },
+  {
+    "id": "signal_idea",
+    "file": "assets/signal_idea.webp",
+    "mime": "image/webp",
+    "bytes": 3390,
+    "sha256": "c8d68ecbb4a704666274b19d2f1fd08548737a36970387bc1931c730ad63e20c"
+  },
+  {
+    "id": "urgency_1",
+    "file": "assets/urgency_1.webp",
+    "mime": "image/webp",
+    "bytes": 58560,
+    "sha256": "74ad0a4856fb782f42a8e35595f67858bde2b21fc1494dc736479bfc42a4288b"
+  },
+  {
+    "id": "urgency_2",
+    "file": "assets/urgency_2.webp",
+    "mime": "image/webp",
+    "bytes": 70832,
+    "sha256": "80bd0d59c99fe70f3ec7059b63d62df2410dab87c5b32512f22c539c4413cfb9"
+  },
+  {
+    "id": "urgency_3",
+    "file": "assets/urgency_3.webp",
+    "mime": "image/webp",
+    "bytes": 78818,
+    "sha256": "017f63c791136dfc0dcd71b46e5a8adf26c3408bc1b1ead89a7f0ce28ae4d7e4"
+  }
+]

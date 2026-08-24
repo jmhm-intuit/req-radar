@@ -1,35 +1,58 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#14274c" />
-    <meta name="description" content="ReqRadar connects job requirements to evidence from past experience and helps candidates understand, compare, and prioritize a portfolio of opportunities." />
-    <title>ReqRadar v3.2.0 — Evidence-Based Fit Navigator</title>
-    <style>
-      #boot-fallback{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f4f6fb;color:#23324d;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center}
-      #boot-fallback>div{width:min(420px,100%);padding:28px;border:1px solid #dce3ee;border-radius:18px;background:#fff;box-shadow:0 18px 50px rgba(35,50,77,.12)}
-      #boot-fallback b{display:inline-grid;place-items:center;width:52px;height:52px;margin-bottom:14px;border-radius:15px;color:#fff;background:#294a8a;font-size:17px}
-      #boot-fallback strong{display:block;margin-bottom:7px;font-size:18px}
-      #boot-fallback span{display:block;color:#6d7a91;font-size:13px;line-height:1.5}
-      #boot-fallback i{display:block;width:160px;height:5px;margin:18px auto 0;overflow:hidden;border-radius:999px;background:#e7ebf3}
-      #boot-fallback i:after{content:"";display:block;width:55%;height:100%;border-radius:inherit;background:#5472d2;animation:reqradar-load 1.15s ease-in-out infinite alternate}
-      @keyframes reqradar-load{from{transform:translateX(-70%)}to{transform:translateX(150%)}}
-    </style>
-  </head>
-  <body>
-    <div id="root">
-      <div id="boot-fallback" role="status" aria-live="polite">
-        <div><b>RR</b><strong>Starting ReqRadar</strong><span id="boot-message">Loading your local career portfolio…</span><i></i></div>
-      </div>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071827">
+<meta name="description" content="Questline 4.2 is a local-first mobile planner with movable Tasks, a trustworthy life-area Review, automatic period history, and an explainable priority queue.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Questline v4.2.0</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip-link" href="#page">Skip to content</a>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Primary navigation">
+    <button class="brand" data-view="today" aria-label="Go to Today">
+      <img src="assets/brand.webp" alt="Questline">
+      <span><strong>Questline</strong><small>Live your quest</small><b class="version-pill" data-version>v4.2.0</b></span>
+    </button>
+    <nav id="desktop-nav"></nav>
+    <div class="sidebar-footer">
+      <span>Local-first · Offline-capable</span>
+      <strong data-version-long>Questline v4.2.0</strong>
     </div>
-    <script>
-      window.setTimeout(function () {
-        var fallback = document.getElementById("boot-fallback");
-        var message = document.getElementById("boot-message");
-        if (fallback && message) message.textContent = "Startup is taking longer than expected. Refresh once; if it persists, ReqRadar will show recovery options instead of a blank screen.";
-      }, 8000);
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  </aside>
+
+  <main class="main" id="page" tabindex="-1">
+    <header class="topbar">
+      <div class="page-heading">
+        <img id="page-icon" src="assets/scene_today.webp" alt="">
+        <div><span class="eyebrow" id="page-eyebrow">PLAN</span><h1 id="page-title">Today</h1></div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="global-search" aria-label="Search">⌕</button>
+        <button class="icon-button" id="menu-button" aria-label="Open menu">☰</button>
+        <button class="button primary" id="header-add"><span>＋</span><span class="button-label">Add</span></button>
+      </div>
+    </header>
+    <section id="view-root" aria-live="polite"></section>
+  </main>
+</div>
+
+<nav class="mobile-nav" id="mobile-nav" aria-label="Primary mobile navigation"></nav>
+<button class="fab" id="mobile-add" aria-label="Add">＋</button>
+<div class="modal-root" id="modal-root"></div>
+<div class="drawer-root" id="drawer-root"></div>
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+<input id="file-import" type="file" hidden accept=".json,.xlsx,.ics,text/calendar,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/questline-xlsx.js"></script>
+<script src="app.js"></script>
+</body>
 </html>
